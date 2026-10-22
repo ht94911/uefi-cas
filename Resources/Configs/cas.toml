@@ -14,6 +14,10 @@ size = 0x800000
 kernel_compression = "gzip"
 append_dtb = false
 
+[boot_image_dtb]
+# Preserve the B-01 expansion area for ABL memory/chosen/splash updates.
+padding = 8192
+
 [boot_image]
 header_version = 2
 pagesize = 4096
