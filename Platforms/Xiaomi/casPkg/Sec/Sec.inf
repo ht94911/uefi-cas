@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = CasSec
+  FILE_GUID = dc337caf-861b-45b7-aab6-8b7f019043ec
+  MODULE_TYPE = SEC
+  VERSION_STRING = 0.1
+
+[Sources]
+  Sec.c
+  Sec.h
+  AArch64/ArchSec.c
+  AArch64/Exception.S
+  AArch64/Helper.S
+  AArch64/ModuleEntryPoint.S
+
+[Packages]
+  MdePkg/MdePkg.dec
+  UefiCpuPkg/UefiCpuPkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  ArmPkg/ArmPkg.dec
+  ArmPlatformPkg/ArmPlatformPkg.dec
+  EmbeddedPkg/EmbeddedPkg.dec
+  SiliciumPkg/SiliciumPkg.dec
+  casPkg/cas.dec
+
+[LibraryClasses]
+  ArmLib
+  ArmMmuLib
+  BaseMemoryLib
+  CacheMaintenanceLib
+  DebugLib
+  FdtLib
+  HobLib
+  PcdLib
+  PrePiLib
+  PrePiHobListPointerLib
+  MemoryInitPeiLib
+  SerialPortLib
+  PrintLib
+
+[Guids]
+  gDxeMemoryProtectionSettingsGuid
+  gCasBootInfoGuid
+  gFdtHobGuid
+
+[FixedPcd]
+  gArmTokenSpaceGuid.PcdFvBaseAddress
+  gArmTokenSpaceGuid.PcdFvSize
+  gEmbeddedTokenSpaceGuid.PcdPrePiCpuIoSize

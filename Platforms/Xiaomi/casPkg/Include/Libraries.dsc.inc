@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+# Portions of the library configuration: Copyright (c) 2011-2015 ARM Limited,
+# (c) 2014 Linaro Limited, (c) 2015-2016 Intel Corporation,
+# (c) 2018-2019 Bingxing Wang. All rights reserved.
+# Explicit library instances selected from the pinned Mu source configuration.
+[LibraryClasses]
+  ArmLib|MdePkg/Library/ArmLib/ArmBaseLib.inf
+  ArmSmcLib|MdePkg/Library/ArmSmcLib/ArmSmcLib.inf
+  ArmHvcLib|ArmPkg/Library/ArmHvcLib/ArmHvcLib.inf
+  ArmMonitorLib|ArmPkg/Library/ArmMonitorLib/ArmMonitorLib.inf
+  ArmGenericTimerCounterLib|ArmPkg/Library/ArmGenericTimerVirtCounterLib/ArmGenericTimerVirtCounterLib.inf
+  BaseLib|MdePkg/Library/BaseLib/BaseLib.inf
+  BaseMemoryLib|MdePkg/Library/BaseMemoryLib/BaseMemoryLib.inf
+  TimerLib|ArmPkg/Library/ArmArchTimerLib/ArmArchTimerLib.inf
+  PrintLib|MdePkg/Library/BasePrintLib/BasePrintLib.inf
+  DebugLib|MdePkg/Library/BaseDebugLibSerialPort/BaseDebugLibSerialPort.inf
+  DebugPrintErrorLevelLib|MdePkg/Library/BaseDebugPrintErrorLevelLib/BaseDebugPrintErrorLevelLib.inf
+  SerialPortLib|casPkg/Library/SerialPortLib/SerialPortLib.inf
+  DebugAgentLib|MdeModulePkg/Library/DebugAgentLibNull/DebugAgentLibNull.inf
+  PerformanceLib|MdePkg/Library/BasePerformanceLibNull/BasePerformanceLibNull.inf
+  IoLib|MdePkg/Library/BaseIoLibIntrinsic/BaseIoLibIntrinsic.inf
+  CpuExceptionHandlerLib|UefiCpuPkg/Library/CpuExceptionHandlerLib/DxeCpuExceptionHandlerLib.inf
+  CacheMaintenanceLib|ArmPkg/Library/ArmCacheMaintenanceLib/ArmCacheMaintenanceLib.inf
+  ArmMmuLib|UefiCpuPkg/Library/ArmMmuLib/ArmMmuBaseLib.inf
+  MemoryMapLib|casPkg/Library/MemoryMapLib/MemoryMapLib.inf
+  MemoryInitPeiLib|SiliciumPkg/Library/MemoryInitPeiLib/MemoryInitPeiLib.inf
+  MemoryMapHelperLib|SiliciumPkg/Library/MemoryMapHelperLib/MemoryMapHelperLib.inf
+  ConfigurationMapLib|casPkg/Library/ConfigurationMapLib/ConfigurationMapLib.inf
+  PrePiLib|EmbeddedPkg/Library/PrePiLib/PrePiLib.inf
+  PrePiHobListPointerLib|ArmPlatformPkg/Library/PrePiHobListPointerLib/PrePiHobListPointerLib.inf
+  PeCoffLib|MdePkg/Library/BasePeCoffLib/BasePeCoffLib.inf
+  PeCoffGetEntryPointLib|MdePkg/Library/BasePeCoffGetEntryPointLib/BasePeCoffGetEntryPointLib.inf
+  PeCoffExtraActionLib|MdePkg/Library/BasePeCoffExtraActionLibNull/BasePeCoffExtraActionLibNull.inf
+  UefiDecompressLib|MdePkg/Library/BaseUefiDecompressLib/BaseUefiDecompressLib.inf
+  HobLib|MdePkg/Library/DxeHobLib/DxeHobLib.inf
+  PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
+  MemoryAllocationLib|MdePkg/Library/UefiMemoryAllocationLib/UefiMemoryAllocationLib.inf
+  UefiLib|MdePkg/Library/UefiLib/UefiLib.inf
+  UefiBootServicesTableLib|MdePkg/Library/UefiBootServicesTableLib/UefiBootServicesTableLib.inf
+  UefiRuntimeServicesTableLib|MdePkg/Library/UefiRuntimeServicesTableLib/UefiRuntimeServicesTableLib.inf
+  UefiDriverEntryPoint|MdePkg/Library/UefiDriverEntryPoint/UefiDriverEntryPoint.inf
+  UefiApplicationEntryPoint|MdePkg/Library/UefiApplicationEntryPoint/UefiApplicationEntryPoint.inf
+  UefiRuntimeLib|MdePkg/Library/UefiRuntimeLib/UefiRuntimeLib.inf
+  DevicePathLib|MdePkg/Library/UefiDevicePathLib/UefiDevicePathLib.inf
+  DxeServicesTableLib|MdePkg/Library/DxeServicesTableLib/DxeServicesTableLib.inf
+  DxeServicesLib|MdePkg/Library/DxeServicesLib/DxeServicesLib.inf
+  ReportStatusCodeLib|MdeModulePkg/Library/DxeReportStatusCodeLib/DxeReportStatusCodeLib.inf
+  SortLib|MdeModulePkg/Library/UefiSortLib/UefiSortLib.inf
+  SecurityManagementLib|MdeModulePkg/Library/DxeSecurityManagementLib/DxeSecurityManagementLib.inf
+  ImagePropertiesRecordLib|MdeModulePkg/Library/ImagePropertiesRecordLib/ImagePropertiesRecordLib.inf
+  DxeMemoryProtectionHobLib|MdeModulePkg/Library/MemoryProtectionHobLib/DxeMemoryProtectionHobLib.inf
+  PcdDatabaseLoaderLib|MdeModulePkg/Library/PcdDatabaseLoaderLib/Dxe/PcdDatabaseLoaderLibDxe.inf
+  ResetSystemLib|ArmPkg/Library/ArmPsciResetSystemLib/ArmPsciResetSystemLib.inf
+  HwResetSystemLib|ArmPkg/Library/ArmPsciResetSystemLib/ArmPsciResetSystemLib.inf
+  ResetUtilityLib|MdeModulePkg/Library/ResetUtilityLib/ResetUtilityLib.inf
+  AuthVariableLib|MdeModulePkg/Library/AuthVariableLibNull/AuthVariableLibNull.inf
+  VarCheckLib|MdeModulePkg/Library/VarCheckLib/VarCheckLib.inf
+  VariablePolicyHelperLib|MdeModulePkg/Library/VariablePolicyHelperLib/VariablePolicyHelperLib.inf
+  VariableFlashInfoLib|MdeModulePkg/Library/BaseVariableFlashInfoLib/BaseVariableFlashInfoLib.inf
+  MemoryTypeInfoSecVarCheckLib|MdeModulePkg/Library/MemoryTypeInfoSecVarCheckLib/MemoryTypeInfoSecVarCheckLib.inf
+  TpmMeasurementLib|MdeModulePkg/Library/TpmMeasurementLibNull/TpmMeasurementLibNull.inf
+  SecurityLockAuditLib|MdeModulePkg/Library/SecurityLockAuditDebugMessageLib/SecurityLockAuditDebugMessageLib.inf
+  DeviceStateLib|MdeModulePkg/Library/DeviceStateLib/DeviceStateLib.inf
+  FdtLib|MdePkg/Library/BaseFdtLib/BaseFdtLib.inf
+  RealTimeClockLib|SiliciumNullPkg/Library/RealTimeClockLibNull/RealTimeClockLibNull.inf
+  TimeBaseLib|EmbeddedPkg/Library/TimeBaseLib/TimeBaseLib.inf
+
+[LibraryClasses.common.SEC]
+  HobLib|EmbeddedPkg/Library/PrePiHobLib/PrePiHobLib.inf
+  MemoryAllocationLib|EmbeddedPkg/Library/PrePiMemoryAllocationLib/PrePiMemoryAllocationLib.inf
+  PcdLib|MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
+  SortLib|MdeModulePkg/Library/BaseSortLib/BaseSortLib.inf
+  ExtractGuidedSectionLib|EmbeddedPkg/Library/PrePiExtractGuidedSectionLib/PrePiExtractGuidedSectionLib.inf
+[LibraryClasses.common.DXE_CORE]
+  DxeCoreEntryPoint|MdePkg/Library/DxeCoreEntryPoint/DxeCoreEntryPoint.inf
+  ExtractGuidedSectionLib|MdePkg/Library/DxeExtractGuidedSectionLib/DxeExtractGuidedSectionLib.inf
+  HobLib|MdePkg/Library/DxeCoreHobLib/DxeCoreHobLib.inf
+  MemoryAllocationLib|MdeModulePkg/Library/DxeCoreMemoryAllocationLib/DxeCoreMemoryAllocationLib.inf
+[LibraryClasses.common.DXE_RUNTIME_DRIVER]
+  VariablePolicyLib|MdeModulePkg/Library/VariablePolicyLib/VariablePolicyLibRuntimeDxe.inf

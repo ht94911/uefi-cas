@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = CasBdsDxe
+  FILE_GUID = e87041ab-a384-408d-a90c-6031be2c79d7
+  MODULE_TYPE = DXE_DRIVER
+  VERSION_STRING = 0.1
+  ENTRY_POINT = CasBdsInitialize
+
+[Sources]
+  CasBdsDxe.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  casPkg/cas.dec
+
+[LibraryClasses]
+  UefiDriverEntryPoint
+  UefiBootServicesTableLib
+  UefiRuntimeServicesTableLib
+  UefiLib
+  BaseMemoryLib
+  HobLib
+  DebugLib
+  MemoryAllocationLib
+
+[Guids]
+  gFdtTableGuid
+  gFdtHobGuid
+  gEfiEndOfDxeEventGroupGuid
+
+[Protocols]
+  gEfiBdsArchProtocolGuid
+  gEfiSimpleTextOutProtocolGuid
+  gEfiSimpleTextInProtocolGuid
+
+[Depex]
+  TRUE

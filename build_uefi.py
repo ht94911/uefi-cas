@@ -482,6 +482,11 @@ def main ():
         sys.exit (1)
 
     # Delete Old Build Files
+    if ctx.device == "cas":
+        logger.error ("cas uses its checked device entry: python3 Platforms/Xiaomi/casPkg/DeviceBuild.py --build --out <new-directory>. Package with the cas device tools; the generic BootShim is incompatible.")
+        sys.exit (2)
+
+    # Delete Old Build Files
     cleanup_old_build (ctx.device, ctx.device_model, ctx.cleanup)
 
     # Remove Mu_Basecore Patches

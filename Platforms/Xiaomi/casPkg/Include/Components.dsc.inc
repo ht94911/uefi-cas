@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+[Components]
+  MdeModulePkg/Core/Dxe/DxeMain.inf
+  MdeModulePkg/Universal/PCD/Dxe/Pcd.inf
+  ArmPkg/Drivers/CpuDxe/CpuDxe.inf
+  ArmPkg/Drivers/ArmGicDxe/ArmGicDxe.inf
+  ArmPkg/Drivers/TimerDxe/TimerDxe.inf
+  MdeModulePkg/Core/RuntimeDxe/RuntimeDxe.inf
+  MdeModulePkg/Universal/Variable/RuntimeDxe/VariableRuntimeDxe.inf
+  MdeModulePkg/Universal/ResetSystemRuntimeDxe/ResetSystemRuntimeDxe.inf
+  EmbeddedPkg/EmbeddedMonotonicCounter/EmbeddedMonotonicCounter.inf
+  EmbeddedPkg/MetronomeDxe/MetronomeDxe.inf
+  EmbeddedPkg/RealTimeClockRuntimeDxe/RealTimeClockRuntimeDxe.inf
+  MdeModulePkg/Universal/DevicePathDxe/DevicePathDxe.inf
+  MdeModulePkg/Universal/SecurityStubDxe/SecurityStubDxe.inf
+  MdeModulePkg/Universal/WatchdogTimerDxe/WatchdogTimer.inf
+  casPkg/Drivers/CasBdsDxe/CasBdsDxe.inf

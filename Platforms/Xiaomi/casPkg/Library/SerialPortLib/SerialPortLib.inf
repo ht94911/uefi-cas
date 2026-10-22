@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = CasRamSerialPortLib
+  FILE_GUID = 14f6c17a-7f69-4869-8f40-8d764a5c630b
+  MODULE_TYPE = BASE
+  VERSION_STRING = 0.1
+  LIBRARY_CLASS = SerialPortLib
+
+[Sources]
+  SerialPortLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  casPkg/cas.dec
+
+[LibraryClasses]
+  BaseLib

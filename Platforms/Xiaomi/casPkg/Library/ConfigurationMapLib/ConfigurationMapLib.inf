@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = CasConfigurationMapLib
+  FILE_GUID = 53e8c623-e404-448d-91dc-2b2de4c46f6c
+  MODULE_TYPE = BASE
+  VERSION_STRING = 0.1
+  LIBRARY_CLASS = ConfigurationMapLib
+
+[Sources]
+  ConfigurationMapLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  QcomPkg/QcomPkg.dec
+
+[LibraryClasses]
