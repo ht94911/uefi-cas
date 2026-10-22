@@ -9,13 +9,20 @@
 
 [Sources]
   CasBdsDxe.c
+  CasBootOption.c
+  CasBootOption.h
+  CasUniXnuBoot.c
 
 [Packages]
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
   casPkg/cas.dec
+  UniXNUPkg/UniXNUPkg.dec
 
 [LibraryClasses]
+  BaseLib
+  PcdLib
+  PrintLib
   CasDisplayLib
   UefiDriverEntryPoint
   UefiBootServicesTableLib
@@ -26,12 +33,17 @@
   DebugLib
   MemoryAllocationLib
 
+[Pcd]
+  gUniXNUPkgTokenSpaceGuid.PcdUniXNUApplicationFile
+
 [Guids]
+  gEfiGlobalVariableGuid
   gFdtTableGuid
   gFdtHobGuid
   gEfiEndOfDxeEventGroupGuid
 
 [Protocols]
+  gEfiLoadedImageProtocolGuid
   gEfiBdsArchProtocolGuid
   gEfiSimpleTextOutProtocolGuid
   gEfiSimpleTextInProtocolGuid

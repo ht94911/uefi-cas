@@ -17,6 +17,8 @@
 #include <CasPlatform.h>
 #include <CasDisplay.h>
 #include <CasInput.h>
+#include "CasBootOption.h"
+STATIC EFI_HANDLE mImageHandle;
 
 STATIC VOID EFIAPI EmptyNotify (EFI_EVENT Event, VOID *Context) { }
 
@@ -99,7 +101,9 @@ STATIC VOID EFIAPI BdsEntry (EFI_BDS_ARCH_PROTOCOL *This) {
     }
     for (;;) { gBS->Stall (100000); }
   }
+  OutputStatus = CasBootUniXnu (mImageHandle);
   DrawMenu (Selected);
+  Print (L"UniXNU returned: %r. Recovery menu ready.\r\n", OutputStatus);
   for (;;) {
     if (EFI_ERROR (gBS->WaitForEvent (1, &gST->ConIn->WaitForKey, &Index)) ||
         EFI_ERROR (gST->ConIn->ReadKeyStroke (gST->ConIn, &Key))) { continue; }
@@ -133,6 +137,7 @@ STATIC EFI_BDS_ARCH_PROTOCOL mBds = { BdsEntry };
 
 EFI_STATUS EFIAPI CasBdsInitialize (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
   EFI_HANDLE Handle = NULL;
+  mImageHandle = ImageHandle;
   ((volatile CAS_BOOT_INFO *)(UINTN)CAS_LOG_BASE)->Stage = CasStageDxe;
   CasDisplayMark (CasStageDxe);
   DEBUG ((DEBUG_WARN, "cas DXE: BDS protocol installed\n"));
