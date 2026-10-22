@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = CasNoCapsuleDxe
+  FILE_GUID = 584ac958-46d7-459b-8ef5-d7815c68a6d4
+  MODULE_TYPE = DXE_RUNTIME_DRIVER
+  VERSION_STRING = 0.1
+  ENTRY_POINT = CasNoCapsuleInitialize
+
+[Sources]
+  CasNoCapsuleDxe.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  UefiDriverEntryPoint
+  UefiBootServicesTableLib
+  UefiRuntimeServicesTableLib
+
+[Protocols]
+  gEfiCapsuleArchProtocolGuid                  ## PRODUCES
+  gEfiRuntimeArchProtocolGuid                  ## CONSUMES
+
+[Depex]
+  gEfiRuntimeArchProtocolGuid
