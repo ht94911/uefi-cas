@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
 // Xiaomi Mi 10 Ultra / cas. Facts: captured boot DTB 2 + DTBO 26 and live FDT.
-// This is an ABL-to-UEFI handoff tree, not an Android device tree.
+// Historical cas-base-001/002 tree: stock ABL DTBO overlay rejected it.
+// Current packaging uses the hash-pinned stock SoC DTB in cas.toml instead.
 // ABL fills /chosen and /memory at boot; never copy an Android bootargs/seed.
 /dts-v1/;
 
