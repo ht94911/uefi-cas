@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = CasInputLib
+  FILE_GUID = 8a4e03f1-aa04-45a1-87d1-c591467096fa
+  MODULE_TYPE = BASE
+  VERSION_STRING = 0.1
+  LIBRARY_CLASS = CasInputLib
+[Sources]
+  CasSpmi.c
+  CasKeys.c
+[Packages]
+  MdePkg/MdePkg.dec
+  casPkg/cas.dec

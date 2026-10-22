@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = CasKeysDxe
+  FILE_GUID = c948273b-728e-4a9f-b97b-e29f893e79bc
+  MODULE_TYPE = DXE_DRIVER
+  VERSION_STRING = 0.1
+  ENTRY_POINT = CasKeysInitialize
+[Sources]
+  CasKeysDxe.c
+[Packages]
+  MdePkg/MdePkg.dec
+  casPkg/cas.dec
+[LibraryClasses]
+  CasInputLib
+  CasDisplayLib
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  IoLib
+  TimerLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+[Protocols]
+  gEfiSimpleTextInProtocolGuid
+  gEfiDevicePathProtocolGuid
+  gEfiTimerArchProtocolGuid
+[Guids]
+  gEfiEventExitBootServicesGuid
+[Depex]
+  gEfiTimerArchProtocolGuid

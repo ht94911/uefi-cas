@@ -16,6 +16,7 @@
 #include <Library/UefiLib.h>
 #include <CasPlatform.h>
 #include <CasDisplay.h>
+#include <CasInput.h>
 
 STATIC VOID EFIAPI EmptyNotify (EFI_EVENT Event, VOID *Context) { }
 
@@ -52,7 +53,8 @@ STATIC VOID DrawMenu (UINTN Selected) {
   Print (L"Xiaomi 10 Ultra (cas) UEFI bring-up\r\n\r\n");
   Print (L"%s Firmware information\r\n", Selected == 0 ? L">" : L" ");
   Print (L"%s Reboot to Android\r\n\r\n", Selected == 1 ? L">" : L" ");
-  Print (L"Volume + / - : move    Power : select\r\n");
+  Print (L"Volume + / - : move    Tap Power : select\r\n");
+  Print (L"Hold Power 0.7s : back\r\n");
 }
 
 STATIC VOID EFIAPI BdsEntry (EFI_BDS_ARCH_PROTOCOL *This) {
@@ -90,7 +92,11 @@ STATIC VOID EFIAPI BdsEntry (EFI_BDS_ARCH_PROTOCOL *This) {
   gBS->CalculateCrc32 (gST, gST->Hdr.HeaderSize, &gST->Hdr.CRC32);
   DEBUG ((DEBUG_WARN, "cas BDS console: output=%r input=%r\n", OutputStatus, InputStatus));
   if (EFI_ERROR (OutputStatus) || EFI_ERROR (InputStatus)) {
-    if (!EFI_ERROR (OutputStatus)) { Print (L"Console driver missing: output=%r input=%r\r\n", OutputStatus, InputStatus); }
+    if (!EFI_ERROR (OutputStatus)) {
+      CAS_INPUT_DIAG *Diag = (VOID *)(UINTN)CAS_INPUT_DIAG_ADDRESS;
+      Print (L"Console driver missing: output=%r input=%r\r\n", OutputStatus, InputStatus);
+      if (Diag->Magic == CAS_INPUT_DIAG_MAGIC) { Print (L"SPMI %08x, keys init=%u, status=%08x\r\n", Diag->SpmiVersion, Diag->InitStatus, Diag->LastStatus); }
+    }
     for (;;) { gBS->Stall (100000); }
   }
   DrawMenu (Selected);
@@ -100,6 +106,8 @@ STATIC VOID EFIAPI BdsEntry (EFI_BDS_ARCH_PROTOCOL *This) {
     if (Key.ScanCode == SCAN_UP || Key.ScanCode == SCAN_DOWN) {
       Selected ^= 1;
       DrawMenu (Selected);
+    } else if (Key.ScanCode == SCAN_ESC) {
+      Selected = 0; DrawMenu (Selected);
     } else if (Key.UnicodeChar == L'\r') {
       if (Selected == 1) {
         Print (L"Rebooting...\r\n");
@@ -110,6 +118,12 @@ STATIC VOID EFIAPI BdsEntry (EFI_BDS_ARCH_PROTOCOL *This) {
         Print (L"\r\nSM8250; FD=0x%Lx; bounded RAM heap=%u MiB\r\n", (UINT64)CAS_FD_BASE, CAS_HEAP_SIZE >> 20);
         Print (L"Entry EL%Lu; FDT=%Lu bytes; RAM payload=%Lu bytes\r\n", Info->EntryEl, Info->FdtSize, Info->InitrdSize);
         Print (L"Variables are emulated in RAM.\r\n");
+        {
+          CAS_FRAMEBUFFER *F = &CasDisplayState ()->Framebuffer;
+          CAS_INPUT_DIAG *Diag = (VOID *)(UINTN)CAS_INPUT_DIAG_ADDRESS;
+          Print (L"Display: %ux%u, base=%Lx, stride=%u\r\n", F->Width, F->Height, F->Base, F->Stride);
+          Print (L"SPMI %08x, PON/GPIO APID %u/%u, key errors=%u\r\n", Diag->SpmiVersion, Diag->PonApid, Diag->GpioApid, Diag->ReadErrors);
+        }
       }
     }
   }

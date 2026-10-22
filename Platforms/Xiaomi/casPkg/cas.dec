@@ -8,5 +8,6 @@
   Include
 [LibraryClasses]
   CasDisplayLib|Include/CasDisplay.h
+  CasInputLib|Include/CasInput.h
 [Guids]
   gCasBootInfoGuid = {0xa6612c96, 0x1b8f, 0x42c7, {0xaa, 0x33, 0x2c, 0x96, 0x1e, 0x6b, 0x42, 0x9d}}

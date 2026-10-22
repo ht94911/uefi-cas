@@ -53,7 +53,8 @@ typedef struct {
   CAS_DISPLAY_SNAPSHOT Snapshot;
 } CAS_DISPLAY_STATE;
 
-typedef char CAS_DISPLAY_STATE_FITS[(sizeof (CAS_DISPLAY_STATE) <= 0xf00) ? 1 : -1];
+// The input diagnostic occupies log+0x800; raw RAM text starts at log+0x1000.
+typedef char CAS_DISPLAY_STATE_FITS[(sizeof (CAS_DISPLAY_STATE) <= 0x700) ? 1 : -1];
 
 enum {
   CasDisplayOk, CasDisplayRevision, CasDisplayRoute, CasDisplayVirtualRect,
