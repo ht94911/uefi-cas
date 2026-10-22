@@ -18,6 +18,8 @@
   DEFINE FD_BLOCKS = 0x800
 
 [BuildOptions]
+  # Do not embed output-directory-dependent CodeView/PDB records in EFI images.
+  *_CLANGPDB_*_DLINK_FLAGS = /DEBUG:NONE
   *_CLANGPDB_*_CC_FLAGS = -Wno-unused-const-variable -Wno-sometimes-uninitialized -Wno-unaligned-access -Wno-deprecated-non-prototype
   *_CLANGPDB_AARCH64_CC_FLAGS = -march=armv8.2-a+crypto+rcpc -D CLANG -D ENABLE_SECUREBOOT=0 -D __DEPRECATED_AARCH64_4K_RUNTIME_GRANULARITY
 [BuildOptions.common.EDKII.SEC]
