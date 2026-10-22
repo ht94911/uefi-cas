@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = CasDisplayLib
+  FILE_GUID = 35e80b9b-49cb-4d6f-9f6d-8af21953cab4
+  MODULE_TYPE = BASE
+  VERSION_STRING = 0.1
+  LIBRARY_CLASS = CasDisplayLib
+[Sources]
+  DisplayDecode.c
+  DisplayHardware.c
+  DisplayBlt.c
+[Packages]
+  MdePkg/MdePkg.dec
+  casPkg/cas.dec

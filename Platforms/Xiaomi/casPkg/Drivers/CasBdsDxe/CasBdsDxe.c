@@ -15,6 +15,7 @@
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Library/UefiLib.h>
 #include <CasPlatform.h>
+#include <CasDisplay.h>
 
 STATIC VOID EFIAPI EmptyNotify (EFI_EVENT Event, VOID *Context) { }
 
@@ -62,6 +63,7 @@ STATIC VOID EFIAPI BdsEntry (EFI_BDS_ARCH_PROTOCOL *This) {
   UINTN Selected = 0, Index;
   volatile CAS_BOOT_INFO *Info = (VOID *)(UINTN)CAS_LOG_BASE;
   Info->Stage = CasStageBds;
+  CasDisplayMark (CasStageBds);
   DEBUG ((DEBUG_WARN, "cas BDS entered\n"));
   gBS->SetWatchdogTimer (0, 0, 0, NULL);
   Hob = GetFirstGuidHob (&gFdtHobGuid);
@@ -118,6 +120,7 @@ STATIC EFI_BDS_ARCH_PROTOCOL mBds = { BdsEntry };
 EFI_STATUS EFIAPI CasBdsInitialize (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
   EFI_HANDLE Handle = NULL;
   ((volatile CAS_BOOT_INFO *)(UINTN)CAS_LOG_BASE)->Stage = CasStageDxe;
+  CasDisplayMark (CasStageDxe);
   DEBUG ((DEBUG_WARN, "cas DXE: BDS protocol installed\n"));
   return gBS->InstallMultipleProtocolInterfaces (&Handle, &gEfiBdsArchProtocolGuid, &mBds, NULL);
 }

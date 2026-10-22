@@ -4,6 +4,9 @@
 # (c) 2018-2019 Bingxing Wang. All rights reserved.
 # Explicit library instances selected from the pinned Mu source configuration.
 [LibraryClasses]
+  CasDisplayLib|casPkg/Library/CasDisplayLib/CasDisplayLib.inf
+  HiiLib|MdeModulePkg/Library/UefiHiiLib/UefiHiiLib.inf
+  UefiHiiServicesLib|MdeModulePkg/Library/UefiHiiServicesLib/UefiHiiServicesLib.inf
   ArmLib|MdePkg/Library/ArmLib/ArmBaseLib.inf
   ArmSmcLib|MdePkg/Library/ArmSmcLib/ArmSmcLib.inf
   ArmHvcLib|ArmPkg/Library/ArmHvcLib/ArmHvcLib.inf

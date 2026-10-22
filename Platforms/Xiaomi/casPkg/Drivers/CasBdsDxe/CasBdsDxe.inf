@@ -16,6 +16,7 @@
   casPkg/cas.dec
 
 [LibraryClasses]
+  CasDisplayLib
   UefiDriverEntryPoint
   UefiBootServicesTableLib
   UefiRuntimeServicesTableLib

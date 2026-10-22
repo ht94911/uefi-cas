@@ -25,6 +25,7 @@
   casPkg/cas.dec
 
 [LibraryClasses]
+  CasDisplayLib
   ArmLib
   ArmMmuLib
   BaseMemoryLib

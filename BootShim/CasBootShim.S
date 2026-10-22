@@ -86,6 +86,12 @@ _Start:
   subs  x5, x5, #16
   b.ne  4b
 
+  // Framebuffer writes are optional and occur only after memory validation.
+  // The shared cas decoder requires a real, bounded linear display route.
+  bl    CasDisplayInitialize
+  mov   w0, #1
+  bl    CasDisplayMark
+
   adr   x3, _Payload
   ldr   x4, =CAS_FD_BASE
   ldr   x5, =CAS_FD_SIZE
@@ -96,9 +102,12 @@ _Start:
   ldr   x8, =CAS_LOG_BASE
   mov   w9, #2
   str   w9, [x8, #12]
+  mov   w0, #2
+  bl    CasDisplayMark
 
   mov   x3, x20
   ldr   x4, =CAS_FDT_BASE
+  ldr   x8, =CAS_LOG_BASE
   ldr   x5, [x8, #40]
 6: ldrb  w6, [x3], #1
   strb  w6, [x4], #1
@@ -106,6 +115,8 @@ _Start:
   b.ne  6b
   mov   w9, #3
   str   w9, [x8, #12]
+  mov   w0, #3
+  bl    CasDisplayMark
 
   dsb   sy
   // Publish instructions across possible cache aliases left by the loader.

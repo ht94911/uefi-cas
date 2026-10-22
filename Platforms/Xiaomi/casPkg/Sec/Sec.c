@@ -19,6 +19,7 @@
 #include <Library/PrePiHobListPointerLib.h>
 #include <Library/SerialPortLib.h>
 #include <CasPlatform.h>
+#include <CasDisplay.h>
 #include "Sec.h"
 
 extern EFI_GUID gCasBootInfoGuid;
@@ -26,6 +27,7 @@ extern EFI_GUID gCasBootInfoGuid;
 STATIC VOID Stop (EFI_STATUS Status) {
   volatile CAS_BOOT_INFO *Info = (VOID *)(UINTN)CAS_LOG_BASE;
   Info->Error = Status;
+  CasDisplayFault ((CAS_U64)Status);
   DEBUG ((DEBUG_ERROR, "cas SEC stopped: %r, stage=%u\n", Status, Info->Stage));
   CpuDeadLoop ();
 }
@@ -47,6 +49,7 @@ VOID SecEntry (UINTN FdtAddress, UINTN InfoAddress) {
   }
   ArmWriteVBar ((UINTN)SecVectorTable);
   Info->Stage = CasStageSec;
+  CasDisplayMark (CasStageSec);
   SerialPortInitialize ();
   DEBUG ((DEBUG_WARN, "cas SEC: EL%Lu FDT=%Lx/%Lu, initrd=%Lx/%Lu\n",
           Info->EntryEl, Info->FdtCopy, Info->FdtSize, Info->OriginalInitrd, Info->InitrdSize));
@@ -84,6 +87,7 @@ VOID SecEntry (UINTN FdtAddress, UINTN InfoAddress) {
   Status = ArmSetMemoryAttributes (CAS_SPLASH_BASE, CAS_SPLASH_SIZE, EFI_MEMORY_XP, EFI_MEMORY_XP);
   if (EFI_ERROR (Status)) { Stop (Status); }
   Info->Stage = CasStageMmu;
+  CasDisplayMark (CasStageMmu);
   BuildStackHob (CAS_STACK_BASE, CAS_STACK_SIZE);
   BuildCpuHob (ArmGetPhysicalAddressBits (), PcdGet8 (PcdPrePiCpuIoSize));
   SetBootMode (BOOT_WITH_DEFAULT_SETTINGS);
@@ -116,10 +120,12 @@ VOID SecEntry (UINTN FdtAddress, UINTN InfoAddress) {
     Stop (EFI_OUT_OF_RESOURCES);
   }
   Info->Stage = CasStageHobs;
+  CasDisplayMark (CasStageHobs);
   DEBUG ((DEBUG_WARN, "cas SEC: MMU/HOB ready; decompressing DXE FV\n"));
   Status = DecompressFirstFv ();
   if (EFI_ERROR (Status)) { Stop (Status); }
   Info->Stage = CasStageDecompressed;
+  CasDisplayMark (CasStageDecompressed);
   DEBUG ((DEBUG_WARN, "cas SEC: entering DXE core\n"));
   Status = LoadDxeCoreFromFv (NULL, 0);
   Stop (Status);
