@@ -71,13 +71,21 @@ _Start:
   // The input tree and both incoming payloads are now validated. Until here,
   // only the scratch stack inside our own checked kernel input was written.
   ldr   x3, =CAS_LOG_BASE
+#ifdef CAS_XNU_DIAGNOSTICS
+  ldr   x4, =CAS_DIAG_LOG_OFFSET
+#else
   ldr   x4, =CAS_LOG_SIZE
+#endif
 3: stp   xzr, xzr, [x3], #16
   subs  x4, x4, #16
   b.ne  3b
   lsr   x24, x24, #2
   str   x24, [sp, #80]
   str   x25, [sp, #88]
+#ifdef CAS_XNU_DIAGNOSTICS
+  mrs   x5, cntvct_el0
+  str   x5, [sp, #104]       // diagnostic boot stamp; constant across app exits
+#endif
   mov   x3, sp
   ldr   x4, =CAS_LOG_BASE
   mov   x5, #CAS_BOOT_INFO_SIZE

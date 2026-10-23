@@ -5,7 +5,11 @@
 #include <CasPlatform.h>
 
 #define CAS_LOG_HEADER_SIZE  16
+#ifdef CAS_XNU_DIAGNOSTICS
+#define CAS_LOG_DATA_SIZE    (CAS_DIAG_LOG_OFFSET - 0x1000 - CAS_LOG_HEADER_SIZE)
+#else
 #define CAS_LOG_DATA_SIZE    (CAS_LOG_SIZE - 0x1000 - CAS_LOG_HEADER_SIZE)
+#endif
 typedef struct {
   UINT32 Magic;
   UINT32 Used;

@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+[Defines]
+  INF_VERSION = 0x0001001B
+  BASE_NAME = CasDiag
+  FILE_GUID = b30160ba-4e2d-4e34-a1fc-3c7a21431ec0
+  MODULE_TYPE = UEFI_APPLICATION
+  VERSION_STRING = 0.1
+  ENTRY_POINT = CasDiagEntry
+[Sources]
+  CasDiag.c
+  DiagCore.c
+[Packages]
+  MdePkg/MdePkg.dec
+  EmbeddedPkg/EmbeddedPkg.dec
+  QcomPkg/QcomPkg.dec
+  casPkg/cas.dec
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiBootServicesTableLib
+  UefiRuntimeServicesTableLib
+  UefiLib
+  BaseLib
+  BaseMemoryLib
+  CacheMaintenanceLib
+  FdtLib
+  MemoryAllocationLib
+  PrintLib
+[Protocols]
+  gEfiGraphicsOutputProtocolGuid
+[Guids]
+  gFdtTableGuid
