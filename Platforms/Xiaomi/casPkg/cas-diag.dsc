@@ -33,7 +33,7 @@
 
 [PcdsFixedAtBuild]
   gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVendor|L"UniXNU cas development"
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVersionString|L"cas-diag-001"
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVersionString|L"cas-diag-002"
   gEfiMdeModulePkgTokenSpaceGuid.PcdEmuVariableNvModeEnable|TRUE
   gEfiMdeModulePkgTokenSpaceGuid.PcdResetOnMemoryTypeInformationChange|FALSE
   gEfiMdeModulePkgTokenSpaceGuid.PcdMaxVariableSize|0x2000
@@ -67,7 +67,7 @@
   gEfiMdePkgTokenSpaceGuid.PcdComponentName2Disable|TRUE
   gEfiMdePkgTokenSpaceGuid.PcdDriverDiagnostics2Disable|TRUE
 
-!include casPkg/Include/Libraries.dsc.inc
+!include casPkg/Include/Libraries.diag.dsc.inc
 
 [Components]
   casPkg/Sec/Sec.inf {

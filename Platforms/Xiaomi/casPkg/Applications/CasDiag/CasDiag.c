@@ -3,7 +3,7 @@
 #include <Uefi.h>
 #include <Guid/Fdt.h>
 #include <Protocol/GraphicsOutput.h>
-#include <Protocol/EFIRamPartition.h>
+#include <Protocol/MemoryAttribute.h>
 #include <Library/BaseLib.h>
 #include <Library/BaseMemoryLib.h>
 #include <Library/CacheMaintenanceLib.h>
@@ -15,10 +15,11 @@
 #include <Library/UefiLib.h>
 #include <CasPlatform.h>
 #include "DiagCore.h"
+#include "SmemCore.h"
 #ifndef CAS_XNU_DIAGNOSTICS
 #error CasDiag requires the independent diagnostic firmware profile
 #endif
-#define BUILD_ID "cas-diag-001"
+#define BUILD_ID "cas-diag-002"
 STATIC CD_RANGE mBanks[CD_MAX_RANGES],mSmem[CD_MAX_RANGES],mFree[CD_MAX_RANGES],mReserved[CD_MAX_RANGES];
 STATIC CD_U32 mBankCount,mSmemCount,mFreeCount,mReservedCount,mComplete,mFlags;
 STATIC CD_U8 mPayload[CD_LOG_CAPACITY-CD_LOG_HEADER],mEncoded[CD_LOG_CAPACITY];
@@ -28,7 +29,9 @@ STATIC CD_LOG_INFO mPrevious;
 STATIC INTN mPreviousStatus;
 STATIC CAS_BOOT_INFO *mBoot;
 STATIC BOOLEAN mDropped;
-STATIC EFI_GUID mRamGuid=EFI_RAMPARTITION_PROTOCOL_GUID;
+STATIC CD_SMEM_WORK mSmemWork;
+STATIC CD_SMEM_INFO mSmemInfo;
+STATIC BOOLEAN mSmemMapped;
 
 STATIC VOID Line(CONST CHAR8 *Format, ...) {
   CHAR8 Text[256];VA_LIST Args;UINTN N;
@@ -107,36 +110,47 @@ STATIC BOOLEAN FdtFacts(VOID) {
   if(Node!=-1)Good=FALSE;
   return Good && mBankCount>0;
 }
+STATIC int SmemRead(void *Context,CD_U32 Offset,CD_U32 Length,CD_U8 *Output) {
+  volatile CONST UINT8 *P=(VOID *)(UINTN)(CAS_SMEM_BASE+Offset);CD_U32 I;(VOID)Context;
+  if(!mSmemMapped || Offset>CAS_SMEM_SIZE || Length>CAS_SMEM_SIZE-Offset)return 1;
+  MemoryFence();for(I=0;I<Length;++I)Output[I]=P[I];MemoryFence();return 0;
+}
 STATIC BOOLEAN RamFacts(VOID) {
-  EFI_RAMPARTITION_PROTOCOL *Ram=NULL;EFI_STATUS Status;UINT32 Count=0,I,Major=0,Minor=0;
-  STATIC RamPartitionEntry Parts[CD_MAX_RANGES];STATIC PreLoadedImageEntry Images[CD_MAX_RANGES];
-  Status=gBS->LocateProtocol(&mRamGuid,NULL,(VOID **)&Ram);
-  if(EFI_ERROR(Status) || !Ram) {
-    Line("SMEM/RAM-partition protocol unavailable status=%r; no raw unmapped SMEM read\n",Status);return FALSE;
+  VOID *Fdt=NULL;INT32 Node,Region,N,Reserved;CONST UINT8 *P;UINT32 Phandle,I;int Status;
+  EFI_MEMORY_ATTRIBUTE_PROTOCOL *Attributes=NULL;UINT64 Permissions;
+  // The exact current FDT provider must resolve to the mapped reserved region.
+  if(!mSmemMapped || EFI_ERROR(EfiGetSystemConfigurationTable(&gFdtTableGuid,&Fdt)) ||
+      (UINTN)Fdt!=CAS_FDT_BASE || FdtCheckHeader(Fdt) || FdtTotalSize(Fdt)!=mBoot->FdtSize)return FALSE;
+  Node=FdtNodeOffsetByCompatible(Fdt,-1,"qcom,smem");
+  if(Node<0 || FdtNodeOffsetByCompatible(Fdt,Node,"qcom,smem")!=-1)return FALSE;
+  P=FdtGetProp(Fdt,Node,"memory-region",&N);if(!P || N!=4)return FALSE;
+  Phandle=(UINT32)P[0]<<24|(UINT32)P[1]<<16|(UINT32)P[2]<<8|P[3];
+  Region=FdtNodeOffsetByPhandle(Fdt,Phandle);Reserved=FdtPathOffset(Fdt,"/reserved-memory");
+  if(Region<0 || Reserved<0 || FdtParentOffset(Fdt,Region)!=Reserved ||
+      FdtAddressCells(Fdt,Reserved)!=2 || FdtSizeCells(Fdt,Reserved)!=2)return FALSE;
+  P=FdtGetProp(Fdt,Reserved,"ranges",&N);if(!P || N!=0)return FALSE;
+  P=FdtGetProp(Fdt,Region,"reg",&N);
+  if(!P || N!=16 || Be64(P)!=CAS_SMEM_BASE || Be64(P+8)!=CAS_SMEM_SIZE)return FALSE;
+  P=FdtGetProp(Fdt,Region,"no-map",&N);if(!P || N!=0)return FALSE;
+  if(EFI_ERROR(gBS->LocateProtocol(&gEfiMemoryAttributeProtocolGuid,NULL,(VOID **)&Attributes)) ||
+      !Attributes || !Attributes->GetMemoryAttributes ||
+      EFI_ERROR(Attributes->GetMemoryAttributes(Attributes,CAS_SMEM_BASE,CAS_SMEM_SIZE,&Permissions)) ||
+      (Permissions&(EFI_MEMORY_RO|EFI_MEMORY_XP|EFI_MEMORY_RP))!=(EFI_MEMORY_RO|EFI_MEMORY_XP))return FALSE;
+  Status=CasDiagSmemRead(SmemRead,NULL,&mSmemWork,&mSmemInfo);
+  Line("SMEM readonly base=%016Lx bytes=%Lx status=%d heap-version=%u table-version=%u item-offset=%x item-size=%u\n",
+       (UINT64)CAS_SMEM_BASE,(UINT64)CAS_SMEM_SIZE,Status,mSmemInfo.SmemVersion,mSmemInfo.TableVersion,mSmemInfo.ItemOffset,mSmemInfo.ItemSize);
+  if(Status!=CdSmemValid)return FALSE;
+  Line("SMEM equal bounded observations reads=%u trace-bytes=%u (no atomic-snapshot claim)\n",mSmemInfo.Reads,mSmemInfo.TraceBytes);
+  for(I=0;I<mSmemInfo.Count;++I) {
+    CD_SMEM_PART *R=&mSmemInfo.Parts[I];
+    Line("SMEM part=%u base=%016Lx size=%016Lx available=%016Lx attr=%x category=%u domain=%u type=%u\n",
+         I,R->Base,R->Size,R->Available,R->Attribute,R->Category,R->Domain,R->Type);
+    if(R->Category==14 && R->Type==1 && R->Attribute==1 && (R->Domain==1 || R->Domain==3) && R->Available) {
+      if(!Add(mSmem,&mSmemCount,R->Base,R->Available))return FALSE;
+      if(R->Available<R->Size && !Add(mReserved,&mReservedCount,R->Base+R->Available,R->Size-R->Available))return FALSE;
+    } else if(!Add(mReserved,&mReservedCount,R->Base,R->Size))return FALSE;
   }
-  if(Ram->Revision!=EFI_RAMPARTITION_PROTOCOL_REVISION || !Ram->GetRamPartitions ||
-      !Ram->GetRamPartitionVersion || !Ram->GetPreLoadedImageTable)return FALSE;
-  Status=Ram->GetRamPartitionVersion(Ram,&Major,&Minor);
-  Line("RAM protocol revision=%Lx version=%u.%u status=%r (provider source must be audited)\n",Ram->Revision,Major,Minor,Status);
-  if(EFI_ERROR(Status))return FALSE;
-  Status=Ram->GetRamPartitions(Ram,NULL,&Count);
-  if(Status!=EFI_BUFFER_TOO_SMALL || Count==0 || Count>CD_MAX_RANGES)return FALSE;
-  Status=Ram->GetRamPartitions(Ram,Parts,&Count);
-  if(EFI_ERROR(Status) || Count==0 || Count>CD_MAX_RANGES)return FALSE;
-  for(I=0;I<Count;++I) {
-    Line("RAM protocol base=%016Lx available=%016Lx\n",Parts[I].Base,Parts[I].AvailableLength);
-    if(!Add(mSmem,&mSmemCount,Parts[I].Base,Parts[I].AvailableLength))return FALSE;
-  }
-  Count=0;Status=Ram->GetPreLoadedImageTable(Ram,NULL,&Count);
-  if(Status==EFI_SUCCESS && Count==0)return TRUE;
-  if(Status!=EFI_BUFFER_TOO_SMALL || Count>CD_MAX_RANGES)return FALSE;
-  Status=Ram->GetPreLoadedImageTable(Ram,Images,&Count);
-  if(EFI_ERROR(Status) || Count>CD_MAX_RANGES)return FALSE;
-  for(I=0;I<Count;++I) {
-    Line("RAM preloaded index=%u base=%016Lx size=%016Lx\n",I,Images[I].Base,Images[I].Size);
-    if(!Add(mReserved,&mReservedCount,Images[I].Base,Images[I].Size))return FALSE;
-  }
-  return TRUE;
+  return mSmemCount>0;
 }
 STATIC BOOLEAN GopFacts(VOID) {
   EFI_GRAPHICS_OUTPUT_PROTOCOL *Gop=NULL;EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *Info;UINT64 Need;
@@ -155,7 +169,7 @@ STATIC BOOLEAN GopFacts(VOID) {
 STATIC BOOLEAN UefiFacts(BOOLEAN Verbose) {
   EFI_MEMORY_DESCRIPTOR *Map=NULL,*D;UINTN Size=0,Key,Stride=sizeof(*D),Capacity,I,Attempt;UINT32 Version;
   EFI_STATUS Status;BOOLEAN Good=TRUE;
-  mFreeCount=0;
+  mFreeCount=0;mSmemMapped=FALSE;
   Status=gBS->GetMemoryMap(&Size,NULL,&Key,&Stride,&Version);
   if(Status!=EFI_BUFFER_TOO_SMALL || Stride<sizeof(*D) || Stride>4096 || Size>0x100000)return FALSE;
   for(Attempt=0;Attempt<4;++Attempt) {
@@ -176,6 +190,8 @@ STATIC BOOLEAN UefiFacts(BOOLEAN Verbose) {
     Bytes=D->NumberOfPages*4096;R.Base=D->PhysicalStart;R.Size=Bytes;
     if(!CasDiagRangeValid(R,4096))Good=FALSE;
     if(Verbose)Line("UEFI type=%u phys=%016Lx virt=%016Lx bytes=%016Lx attr=%016Lx\n",D->Type,D->PhysicalStart,D->VirtualStart,Bytes,D->Attribute);
+    if(D->Type==EfiReservedMemoryType && (D->Attribute&EFI_MEMORY_UC) && !(D->Attribute&EFI_MEMORY_RP) &&
+        CasDiagRangeValid(R,4096) && R.Base<=CAS_SMEM_BASE && R.Base+R.Size>=CAS_SMEM_BASE+CAS_SMEM_SIZE)mSmemMapped=TRUE;
     if(D->Type==EfiConventionalMemory && (D->Attribute&EFI_MEMORY_WB) &&
         !(D->Attribute&(EFI_MEMORY_RUNTIME|EFI_MEMORY_RP|EFI_MEMORY_RO)))
       Good=Add(mFree,&mFreeCount,D->PhysicalStart,Bytes)&&Good;
@@ -188,9 +204,9 @@ STATIC VOID Enumerate(VOID) {
   // This low envelope covers the firmware, input corridors, stack and logs.
   Add(mReserved,&mReservedCount,0,0x100000000ULL);
   if(FdtFacts())mComplete|=1;else Line("FDT incomplete: probe refused\n");
-  if(RamFacts())mComplete|=2;else Line("SMEM source incomplete: probe refused\n");
   if(GopFacts())mComplete|=8;else Line("GOP incomplete: probe refused\n");
   if(UefiFacts(TRUE))mComplete|=4;else Line("UEFI map incomplete: probe refused\n");
+  if(RamFacts())mComplete|=2;else Line("SMEM source incomplete: probe refused\n");
   if(mDropped)mComplete=0;
   Line("ENUM complete-mask=%u required=%u banks=%u SMEM=%u conventional=%u exclusions=%u\n",mComplete,CD_FACTS_COMPLETE,mBankCount,mSmemCount,mFreeCount,mReservedCount);
   Persist();
@@ -270,7 +286,7 @@ EFI_STATUS EFIAPI CasDiagEntry(EFI_HANDLE ImageHandle,EFI_SYSTEM_TABLE *SystemTa
   mBootStamp=mBoot->Reserved[0];LoadPrevious();Line("\nAPP ENTRY build=%a boot=%016Lx previous-status=%d\n",BUILD_ID,mBootStamp,mPreviousStatus);
   gBS->SetWatchdogTimer(0,0,0,NULL);
   for(;;) {
-    UINTN I;gST->ConOut->ClearScreen(gST->ConOut);Print(L"CAS DIAG cas-diag-001 (XNU not loaded)\r\n\r\n");
+    UINTN I;gST->ConOut->ClearScreen(gST->ConOut);Print(L"CAS DIAG cas-diag-002 (XNU not loaded)\r\n\r\n");
     for(I=0;I<ARRAY_SIZE(Items);++I)Print(L"%s %s\r\n",I==Selected ? L">" : L" ",Items[I]);
     Print(L"\r\nVolume: move   Power: select   Hold Power: return\r\n");K=Key();
     if(K.ScanCode==SCAN_ESC) {Line("APP RETURN\n");Persist();return EFI_SUCCESS;}

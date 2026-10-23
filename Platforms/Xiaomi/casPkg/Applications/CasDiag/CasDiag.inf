@@ -9,6 +9,7 @@
 [Sources]
   CasDiag.c
   DiagCore.c
+  SmemCore.c
 [Packages]
   MdePkg/MdePkg.dec
   EmbeddedPkg/EmbeddedPkg.dec
@@ -27,5 +28,6 @@
   PrintLib
 [Protocols]
   gEfiGraphicsOutputProtocolGuid
+  gEfiMemoryAttributeProtocolGuid
 [Guids]
   gFdtTableGuid

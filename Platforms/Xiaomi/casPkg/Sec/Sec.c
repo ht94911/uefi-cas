@@ -86,6 +86,14 @@ VOID SecEntry (UINTN FdtAddress, UINTN InfoAddress) {
   if (EFI_ERROR (Status)) { Stop (Status); }
   Status = ArmSetMemoryAttributes (CAS_SPLASH_BASE, CAS_SPLASH_SIZE, EFI_MEMORY_XP, EFI_MEMORY_XP);
   if (EFI_ERROR (Status)) { Stop (Status); }
+#ifdef CAS_XNU_DIAGNOSTICS
+  // Only the diagnostic map includes this existing reserved region. Never add
+  // it to conventional RAM. SEC installs RO/XP before entering any DXE module.
+  Status = ArmSetMemoryAttributes (CAS_SMEM_BASE, CAS_SMEM_SIZE,
+                                   EFI_MEMORY_RO | EFI_MEMORY_XP,
+                                   EFI_MEMORY_RO | EFI_MEMORY_XP);
+  if (EFI_ERROR (Status)) { Stop (Status); }
+#endif
   Info->Stage = CasStageMmu;
   CasDisplayMark (CasStageMmu);
   BuildStackHob (CAS_STACK_BASE, CAS_STACK_SIZE);
