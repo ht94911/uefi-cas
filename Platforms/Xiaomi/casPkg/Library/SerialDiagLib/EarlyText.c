@@ -1,0 +1,156 @@
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+// Original compact diagnostic glyphs; no font assets or firmware blobs.
+#include <CasEarlyText.h>
+
+static const struct { unsigned char Code, Rows[7]; } Glyphs[] = {
+  {48, {14, 17, 19, 21, 25, 17, 14}},
+  {49, {4, 12, 4, 4, 4, 4, 14}},
+  {50, {14, 17, 1, 2, 4, 8, 31}},
+  {51, {30, 1, 1, 14, 1, 1, 30}},
+  {52, {2, 6, 10, 18, 31, 2, 2}},
+  {53, {31, 16, 16, 30, 1, 1, 30}},
+  {54, {14, 16, 16, 30, 17, 17, 14}},
+  {55, {31, 1, 2, 4, 8, 8, 8}},
+  {56, {14, 17, 17, 14, 17, 17, 14}},
+  {57, {14, 17, 17, 15, 1, 1, 14}},
+  {65, {14, 17, 17, 31, 17, 17, 17}},
+  {66, {30, 17, 17, 30, 17, 17, 30}},
+  {67, {14, 17, 16, 16, 16, 17, 14}},
+  {68, {30, 17, 17, 17, 17, 17, 30}},
+  {69, {31, 16, 16, 30, 16, 16, 31}},
+  {70, {31, 16, 16, 30, 16, 16, 16}},
+  {71, {14, 17, 16, 23, 17, 17, 15}},
+  {72, {17, 17, 17, 31, 17, 17, 17}},
+  {73, {14, 4, 4, 4, 4, 4, 14}},
+  {74, {7, 2, 2, 2, 2, 18, 12}},
+  {75, {17, 18, 20, 24, 20, 18, 17}},
+  {76, {16, 16, 16, 16, 16, 16, 31}},
+  {77, {17, 27, 21, 21, 17, 17, 17}},
+  {78, {17, 25, 21, 19, 17, 17, 17}},
+  {79, {14, 17, 17, 17, 17, 17, 14}},
+  {80, {30, 17, 17, 30, 16, 16, 16}},
+  {81, {14, 17, 17, 17, 21, 18, 13}},
+  {82, {30, 17, 17, 30, 20, 18, 17}},
+  {83, {15, 16, 16, 14, 1, 1, 30}},
+  {84, {31, 4, 4, 4, 4, 4, 4}},
+  {85, {17, 17, 17, 17, 17, 17, 14}},
+  {86, {17, 17, 17, 17, 17, 10, 4}},
+  {87, {17, 17, 17, 21, 21, 21, 10}},
+  {88, {17, 17, 10, 4, 10, 17, 17}},
+  {89, {17, 17, 10, 4, 4, 4, 4}},
+  {90, {31, 1, 2, 4, 8, 16, 31}},
+  {45, {0, 0, 0, 31, 0, 0, 0}},
+  {95, {0, 0, 0, 0, 0, 0, 31}},
+  {61, {0, 0, 31, 0, 31, 0, 0}},
+  {43, {0, 4, 4, 31, 4, 4, 0}},
+  {46, {0, 0, 0, 0, 0, 12, 12}},
+  {44, {0, 0, 0, 0, 4, 4, 8}},
+  {58, {0, 12, 12, 0, 12, 12, 0}},
+  {59, {0, 12, 12, 0, 4, 4, 8}},
+  {47, {1, 2, 2, 4, 8, 8, 16}},
+  {92, {16, 8, 8, 4, 2, 2, 1}},
+  {91, {14, 8, 8, 8, 8, 8, 14}},
+  {93, {14, 2, 2, 2, 2, 2, 14}},
+  {40, {2, 4, 8, 8, 8, 4, 2}},
+  {41, {8, 4, 2, 2, 2, 4, 8}},
+  {60, {1, 2, 4, 8, 4, 2, 1}},
+  {62, {16, 8, 4, 2, 4, 8, 16}},
+  {33, {4, 4, 4, 4, 4, 0, 4}},
+  {63, {14, 17, 1, 2, 4, 0, 4}},
+  {37, {17, 2, 4, 4, 4, 8, 17}},
+  {35, {10, 10, 31, 10, 31, 10, 10}},
+  {42, {0, 21, 14, 31, 14, 21, 0}},
+  {39, {4, 4, 8, 0, 0, 0, 0}},
+  {34, {10, 10, 0, 0, 0, 0, 0}},
+  {124, {4, 4, 4, 4, 4, 4, 4}},
+  {64, {14, 17, 23, 21, 23, 16, 14}},
+  {38, {12, 18, 20, 8, 21, 18, 13}},
+  {123, {3, 4, 4, 8, 4, 4, 3}},
+  {125, {24, 4, 4, 2, 4, 4, 24}},
+};
+
+CAS_U32 CasEarlyTextValid (const CAS_EARLY_TEXT *T) {
+  return T && T->Magic == CAS_EARLY_TEXT_MAGIC && T->Version == CAS_EARLY_TEXT_VERSION &&
+         T->Size == sizeof (*T) && T->Row < CAS_EARLY_ROWS && T->Column <= CAS_EARLY_COLS;
+}
+
+void CasEarlyTextReset (CAS_EARLY_TEXT *T) {
+  CAS_U32 I;
+  unsigned char *B = (void *)T;
+  if (!T) { return; }
+  for (I = 0; I < sizeof (*T); ++I) { B[I] = 0; }
+  T->Version = CAS_EARLY_TEXT_VERSION;
+  T->Size = sizeof (*T);
+  T->Magic = CAS_EARLY_TEXT_MAGIC;
+}
+
+static void NextLine (CAS_EARLY_TEXT *T) {
+  CAS_U32 I;
+  T->Row = (T->Row + 1) % CAS_EARLY_ROWS;
+  T->Column = 0;
+  for (I = 0; I < CAS_EARLY_COLS; ++I) { T->Cells[T->Row][I] = 0; }
+}
+
+static void Put (CAS_EARLY_TEXT *T, unsigned char Ch) {
+  if (T->Column == CAS_EARLY_COLS) { NextLine (T); }
+  T->Cells[T->Row][T->Column++] = Ch;
+}
+
+void CasEarlyTextFeed (CAS_EARLY_TEXT *T, const unsigned char *B, CAS_U64 Count) {
+  CAS_U64 I;
+  CAS_U32 N;
+  unsigned char Ch;
+  if (!T || (!B && Count)) { return; }
+  if (!CasEarlyTextValid (T)) { CasEarlyTextReset (T); }
+  for (I = 0; I < Count; ++I) {
+    Ch = B[I];
+    if (T->Bytes != ~(CAS_U32)0) { ++T->Bytes; }
+    if (Ch == '\r') { T->Column = 0; }
+    else if (Ch == '\n') { NextLine (T); }
+    else if (Ch == '\b') {
+      if (T->Column) { T->Cells[T->Row][--T->Column] = 0; }
+    } else if (Ch == '\t') {
+      N = 4 - (T->Column % 4);
+      while (N--) { Put (T, ' '); }
+    } else if (Ch >= 32) { Put (T, Ch <= 126 ? Ch : '?'); }
+  }
+}
+
+static const unsigned char *Glyph (unsigned char Ch) {
+  CAS_U32 I;
+  if (Ch >= 'a' && Ch <= 'z') { Ch -= 'a' - 'A'; }
+  if (!Ch || Ch == ' ') { return 0; }
+  for (I = 0; I < sizeof (Glyphs) / sizeof (Glyphs[0]); ++I) {
+    if (Glyphs[I].Code == Ch) { return Glyphs[I].Rows; }
+  }
+  return Glyph ('?');
+}
+
+CAS_U32 CasEarlyTextRender (const CAS_EARLY_TEXT *T, const CAS_FRAMEBUFFER *F) {
+  CAS_U32 Line, Col, R, C, Start, Y, SourceRow, White = 0xe4edf8, Black = 0x101820;
+  const unsigned char *G;
+  // Fixed cas-sized panel; leave both existing stage and fault bands untouched.
+  if (!CasEarlyTextValid (T) || !F || F->Width < 24 + CAS_EARLY_COLS * 18 ||
+      F->Height < 80 + CAS_EARLY_ROWS * 24) { return 1; }
+  Y = F->Height - 80 - CAS_EARLY_ROWS * 24;
+  if (CasDisplayBlt (F, &Black, 0, 0, 0, 12, Y,
+                     CAS_EARLY_COLS * 18, CAS_EARLY_ROWS * 24, 0)) { return 1; }
+  for (Line = 0; Line < CAS_EARLY_ROWS; ++Line) {
+    SourceRow = (T->Row + 1 + Line) % CAS_EARLY_ROWS;
+    for (Col = 0; Col < CAS_EARLY_COLS; ++Col) {
+      G = Glyph (T->Cells[SourceRow][Col]);
+      if (!G) { continue; }
+      for (R = 0; R < 7; ++R) {
+        C = 0;
+        while (C < 5) {
+          if (!(G[R] & (1u << (4 - C)))) { ++C; continue; }
+          Start = C++;
+          while (C < 5 && (G[R] & (1u << (4 - C)))) { ++C; }
+          if (CasDisplayBlt (F, &White, 0, 0, 0, 12 + Col * 18 + Start * 3,
+                             Y + Line * 24 + R * 3, (C - Start) * 3, 3, 0)) { return 1; }
+        }
+      }
+    }
+  }
+  return 0;
+}

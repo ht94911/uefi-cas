@@ -19,7 +19,7 @@
 #ifndef CAS_XNU_DIAGNOSTICS
 #error CasDiag requires the independent diagnostic firmware profile
 #endif
-#define BUILD_ID "cas-diag-002"
+#define BUILD_ID "cas-diag-003"
 STATIC CD_RANGE mBanks[CD_MAX_RANGES],mSmem[CD_MAX_RANGES],mFree[CD_MAX_RANGES],mReserved[CD_MAX_RANGES];
 STATIC CD_U32 mBankCount,mSmemCount,mFreeCount,mReservedCount,mComplete,mFlags;
 STATIC CD_U8 mPayload[CD_LOG_CAPACITY-CD_LOG_HEADER],mEncoded[CD_LOG_CAPACITY];
@@ -286,7 +286,7 @@ EFI_STATUS EFIAPI CasDiagEntry(EFI_HANDLE ImageHandle,EFI_SYSTEM_TABLE *SystemTa
   mBootStamp=mBoot->Reserved[0];LoadPrevious();Line("\nAPP ENTRY build=%a boot=%016Lx previous-status=%d\n",BUILD_ID,mBootStamp,mPreviousStatus);
   gBS->SetWatchdogTimer(0,0,0,NULL);
   for(;;) {
-    UINTN I;gST->ConOut->ClearScreen(gST->ConOut);Print(L"CAS DIAG cas-diag-002 (XNU not loaded)\r\n\r\n");
+    UINTN I;gST->ConOut->ClearScreen(gST->ConOut);Print(L"CAS DIAG cas-diag-003 (XNU not loaded)\r\n\r\n");
     for(I=0;I<ARRAY_SIZE(Items);++I)Print(L"%s %s\r\n",I==Selected ? L">" : L" ",Items[I]);
     Print(L"\r\nVolume: move   Power: select   Hold Power: return\r\n");K=Key();
     if(K.ScanCode==SCAN_ESC) {Line("APP RETURN\n");Persist();return EFI_SUCCESS;}
