@@ -129,3 +129,75 @@ CD_PROBE_RESULT CasDiagRunProbe(CD_RANGE R, int Gate, const CD_PROBE_IO *Io, voi
   }
   return Result;
 }
+
+
+static CD_U64 be64(const CD_U8 *P) {
+  CD_U64 V=0;CD_U32 I;for(I=0;I<8;++I)V=(V<<8)|P[I];return V;
+}
+int CasDiagReservedRanges(const CD_U8 *Reg,int RegBytes,
+  const CD_U8 *Size,int SizeBytes,const CD_U8 *Align,int AlignBytes,
+  const CD_U8 *Allowed,int AllowedBytes,CD_RANGE *Out,CD_U32 Capacity,CD_U32 *Count) {
+  const CD_U8 *Input;int Bytes,Kind;CD_U32 I,N;CD_U64 Need=0,Alignment=1;int Fits=0;
+  if(!Count)return CdReserveInvalid;
+  *Count=0;
+  if(!Out || Capacity>CD_MAX_RANGES)return CdReserveInvalid;
+  if(Reg) {Input=Reg;Bytes=RegBytes;Kind=CdReserveStatic;}
+  else {
+    if(RegBytes!=-1)return CdReserveInvalid;
+    if(!Size)return CdReserveUnknown;
+    if(SizeBytes!=8 || !(Need=be64(Size)))return CdReserveInvalid;
+    if(Align) {
+      if(AlignBytes!=8 || !(Alignment=be64(Align)) || (Alignment&(Alignment-1)))return CdReserveInvalid;
+    } else if(AlignBytes!=-1)return CdReserveInvalid;
+    if(!Allowed)return CdReserveUnknown;
+    Input=Allowed;Bytes=AllowedBytes;Kind=CdReserveDynamic;
+  }
+  if(Bytes<=0 || Bytes%16 || Bytes>16*(int)CD_MAX_RANGES)return CdReserveInvalid;
+  N=(CD_U32)Bytes/16;
+  if(N>Capacity)return CdReserveCapacity;
+  // Validate every tuple before exposing any output, including aligned fit.
+  for(I=0;I<N;++I) {
+    CD_RANGE R={be64(Input+I*16),be64(Input+I*16+8)};CD_U64 Skip;
+    if(!CasDiagRangeValid(R,1))return CdReserveInvalid;
+    Skip=(0ULL-R.Base)&(Alignment-1);
+    if(Skip<=R.Size && Need<=R.Size-Skip)Fits=1;
+  }
+  if(Kind==CdReserveDynamic && !Fits)return CdReserveInvalid;
+  for(I=0;I<N;++I) {Out[I].Base=be64(Input+I*16);Out[I].Size=be64(Input+I*16+8);}
+  *Count=N;return Kind;
+}
+CD_U32 CasDiagTextLine(const CD_U8 *Data,CD_U32 Length,CD_U32 Offset,
+  CD_U32 Width,char *Out,CD_U32 Capacity) {
+  CD_U32 N=0;CD_U8 Ch;
+  if(!Out || !Capacity)return Offset;
+  Out[0]=0;
+  if(!Data || Offset>=Length || Length>CD_LOG_CAPACITY || !Width || Width>=Capacity)return Offset;
+  while(Offset<Length && N<Width) {
+    Ch=Data[Offset];if(Ch==10 || Ch==13)break;
+    ++Offset;Out[N++]=(Ch>=32 && Ch<=126) ? (char)Ch : '?';
+  }
+  if(Offset<Length && (Data[Offset]==10 || Data[Offset]==13)) {
+    Ch=Data[Offset++];if(Ch==13 && Offset<Length && Data[Offset]==10)++Offset;
+  }
+  Out[N]=0;return Offset;
+}
+CD_U32 CasDiagPageEnd(const CD_U8 *Data,CD_U32 Length,CD_U32 Offset,CD_U32 Width,CD_U32 Rows) {
+  CD_U32 I,Next;char Text[256];
+  if(!Rows || !Width || Width>=sizeof(Text))return Offset;
+  for(I=0;I<Rows && Offset<Length;++I) {
+    Next=CasDiagTextLine(Data,Length,Offset,Width,Text,sizeof(Text));
+    if(Next<=Offset)break;
+    Offset=Next;
+  }
+  return Offset;
+}
+CD_U32 CasDiagPagePrevious(const CD_U8 *Data,CD_U32 Length,CD_U32 Offset,CD_U32 Width,CD_U32 Rows) {
+  CD_U32 Cursor=0,Next;
+  if(Offset>Length)return 0;
+  while(Cursor<Offset) {
+    Next=CasDiagPageEnd(Data,Length,Cursor,Width,Rows);
+    if(Next<=Cursor || Next>=Offset)return Cursor;
+    Cursor=Next;
+  }
+  return 0;
+}

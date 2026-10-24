@@ -41,4 +41,16 @@ enum { CdProbePass=0, CdProbeDenied, CdProbeAllocation, CdProbeAddress, CdProbeW
   CdProbeCache, CdProbeRead, CdProbeClear, CdProbeRelease };
 CD_PROBE_RESULT CasDiagRunProbe(CD_RANGE Range, int Gate, const CD_PROBE_IO *Io, void *Context);
 
+// Reservation inputs use the already-validated parent cells=2/2.
+// Dynamic outputs are the WHOLE alloc-ranges, never guessed placements.
+enum { CdReserveStatic=0, CdReserveDynamic, CdReserveUnknown, CdReserveInvalid, CdReserveCapacity };
+int CasDiagReservedRanges(const CD_U8 *Reg, int RegBytes,
+  const CD_U8 *Size, int SizeBytes, const CD_U8 *Align, int AlignBytes,
+  const CD_U8 *Allowed, int AllowedBytes, CD_RANGE *Out, CD_U32 Capacity, CD_U32 *Count);
+// Return consumed offsets while printing at most Width safe ASCII cells per row.
+CD_U32 CasDiagTextLine(const CD_U8 *Data, CD_U32 Length, CD_U32 Offset,
+  CD_U32 Width, char *Out, CD_U32 Capacity);
+CD_U32 CasDiagPageEnd(const CD_U8 *Data, CD_U32 Length, CD_U32 Offset, CD_U32 Width, CD_U32 Rows);
+CD_U32 CasDiagPagePrevious(const CD_U8 *Data, CD_U32 Length, CD_U32 Offset, CD_U32 Width, CD_U32 Rows);
+
 #endif
