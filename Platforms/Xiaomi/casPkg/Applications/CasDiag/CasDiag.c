@@ -19,7 +19,7 @@
 #ifndef CAS_XNU_DIAGNOSTICS
 #error CasDiag requires the independent diagnostic firmware profile
 #endif
-#define BUILD_ID "cas-diag-006"
+#define BUILD_ID "cas-diag-007"
 STATIC CD_RANGE mBanks[CD_MAX_RANGES],mSmem[CD_MAX_RANGES],mFree[CD_MAX_RANGES],mReserved[CD_MAX_RANGES];
 STATIC CD_U32 mBankCount,mSmemCount,mFreeCount,mReservedCount,mComplete,mFlags;
 STATIC CD_U8 mPayload[CD_LOG_CAPACITY-CD_LOG_HEADER],mEncoded[CD_LOG_CAPACITY];
@@ -204,7 +204,21 @@ STATIC BOOLEAN RamFacts(VOID) {
   Status=CasDiagSmemRead(SmemRead,NULL,&mSmemWork,&mSmemInfo);
   Line("SMEM readonly base=%016Lx bytes=%Lx status=%d heap-version=%u table-version=%u item-offset=%x item-size=%u\n",
        (UINT64)CAS_SMEM_BASE,(UINT64)CAS_SMEM_SIZE,Status,mSmemInfo.SmemVersion,mSmemInfo.TableVersion,mSmemInfo.ItemOffset,mSmemInfo.ItemSize);
-  if(Status!=CdSmemValid)return FALSE;
+  if(Status!=CdSmemValid) {
+    CD_U32 J;
+    Line("SMEM reject check=%u name=%a pass=%u reads=%u trace-bytes=%u\n",
+         mSmemWork.Check,CasDiagSmemCheckName(mSmemWork.Check),mSmemWork.Compare,mSmemWork.Reads,mSmemWork.Used);
+    Line("SMEM last-read offset=%08x bytes=%u metadata-bytes=%u\n",
+         mSmemWork.ReadOffset,mSmemWork.ReadLength,mSmemWork.SampleBytes);
+    // Only bytes already returned by a bounded metadata read, four per line.
+    // The sample is empty for item payloads or a failed callback.
+    for(J=0;J+4<=mSmemWork.SampleBytes;J+=4) {
+      CONST CD_U8 *P=mSmemWork.Sample+J;
+      CD_U32 Value=(CD_U32)P[0]|(CD_U32)P[1]<<8|(CD_U32)P[2]<<16|(CD_U32)P[3]<<24;
+      Line("SMEM meta +%02x = %08x\n",J,Value);
+    }
+    Persist();return FALSE;
+  }
   Line("SMEM equal bounded observations reads=%u trace-bytes=%u (no atomic-snapshot claim)\n",mSmemInfo.Reads,mSmemInfo.TraceBytes);
   for(I=0;I<mSmemInfo.Count;++I) {
     CD_SMEM_PART *R=&mSmemInfo.Parts[I];

@@ -19,10 +19,15 @@ typedef struct {
   CD_U32 Used, Cursor, Reads, Compare;
   CD_SMEM_READ Read;
   void *Context;
+  // Diagnostic-only copy of an already requested metadata read. Item payload
+  // and RAM row bytes are never copied here. No additional physical read.
+  CD_U32 Check, ReadOffset, ReadLength, SampleBytes;
+  CD_U8 Sample[48];
 } CD_SMEM_WORK;
 enum { CdSmemValid=0, CdSmemRead, CdSmemFormat, CdSmemVersion, CdSmemMissing,
        CdSmemBounds, CdSmemChanging, CdSmemBudget };
 // Read-only observation. Two equal bounded traces are required; no remote lock
 // or atomic snapshot is claimed. No pointer from SMEM is dereferenced directly.
 int CasDiagSmemRead(CD_SMEM_READ Read, void *Context, CD_SMEM_WORK *Work, CD_SMEM_INFO *Info);
+const char *CasDiagSmemCheckName(CD_U32 Check);
 #endif
