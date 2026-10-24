@@ -4,6 +4,9 @@
 
 static const unsigned char FreezeMarker[] = "STACK DUMP:";
 static const unsigned char PcMarker[] = "PC 0X";
+static const unsigned char NestedMarker[] = " EXCEPTION AT 0X";
+static const char *FaultLabels[6] = {"SP 0X", "ELR 0X", "SPSR 0X", "FPSR 0X", "ESR 0X", "FAR 0X"};
+static const CAS_U32 FaultLengths[6] = {5, 6, 7, 7, 6, 6};
 
 static const struct { unsigned char Code, Rows[7]; } Glyphs[] = {
   {48, {14, 17, 19, 21, 25, 17, 14}},
@@ -76,7 +79,11 @@ CAS_U32 CasEarlyTextValid (const CAS_EARLY_TEXT *T) {
   return T && T->Magic == CAS_EARLY_TEXT_MAGIC && T->Version == CAS_EARLY_TEXT_VERSION &&
          T->Size == sizeof (*T) && T->Row < CAS_EARLY_ROWS && T->Column <= CAS_EARLY_COLS &&
          T->Frozen <= 1 && T->Match < sizeof (FreezeMarker) - 1 &&
-         T->PcMatch <= sizeof (PcMarker) - 1 && T->PcPending <= 1;
+         T->PcMatch <= sizeof (PcMarker) - 1 && T->PcPending <= 1 &&
+         T->FaultState <= 4 && T->FaultSlot < 6 && T->FaultMatch <= 8 &&
+         (T->FaultState != 1 || T->FaultMatch < FaultLengths[T->FaultSlot]) &&
+         T->FaultDigits <= 16 && T->FaultExceptionMatch < sizeof (NestedMarker) - 1 &&
+         !(T->FaultMask & ~(CAS_FAULT_ARMED | CAS_FAULT_CONFLICT | CAS_FAULT_ALL));
 }
 
 void CasEarlyTextReset (CAS_EARLY_TEXT *T) {
@@ -101,15 +108,76 @@ static void Put (CAS_EARLY_TEXT *T, unsigned char Ch) {
   T->Cells[T->Row][T->Column++] = Ch;
 }
 
+static void FaultNewLine (CAS_EARLY_TEXT *T) {
+  T->FaultState = T->FaultSlot = T->FaultMatch = T->FaultDigits = 0;
+}
+
+// No printed pointer is dereferenced. Start only at exact source-line prefixes
+// "  SP 0x" or " ESR 0x"; commit at most16 hex digits per field, once only.
+static void FaultFeed (CAS_EARLY_TEXT *T, unsigned char Ch) {
+  CAS_U32 Value;
+  unsigned char Upper;
+  const char *Label;
+  if (!(T->FaultMask & CAS_FAULT_ARMED) || (T->FaultMask & CAS_FAULT_CONFLICT) ||
+      (T->FaultMask & CAS_FAULT_ALL) == CAS_FAULT_ALL) { return; }
+  // A nested handler before all fields makes association ambiguous. Refuse the
+  // later numeric group, rather than pairing its ESR with the first PC.
+  Upper = Ch >= 'a' && Ch <= 'z' ? Ch - ('a' - 'A') : Ch;
+  if (Upper == NestedMarker[T->FaultExceptionMatch]) {
+    if (++T->FaultExceptionMatch == sizeof (NestedMarker) - 1) {
+      T->FaultMask |= CAS_FAULT_CONFLICT; T->FaultExceptionMatch = 0; return;
+    }
+  } else { T->FaultExceptionMatch = Upper == NestedMarker[0] ? 1 : 0; }
+  if (Ch == '\r') { return; }
+  if (T->FaultState == 2) {
+    Value = Ch >= '0' && Ch <= '9' ? Ch - '0' :
+            Ch >= 'A' && Ch <= 'F' ? Ch - 'A' + 10 :
+            Ch >= 'a' && Ch <= 'f' ? Ch - 'a' + 10 : 16;
+    if (Value < 16) {
+      if (T->FaultDigits == 16) { T->FaultState = 4; T->FaultValues[T->FaultSlot] = 0; return; }
+      T->FaultValues[T->FaultSlot] = (T->FaultValues[T->FaultSlot] << 4) | Value;
+      ++T->FaultDigits;
+      return;
+    }
+    if (!T->FaultDigits || (Ch != ' ' && Ch != '\t' && Ch != '\n')) { T->FaultState = 4; }
+    else {
+      T->FaultMask |= 1U << T->FaultSlot;
+      if (T->FaultSlot == 3 || T->FaultSlot == 5) { T->FaultState = 4; }
+      else { ++T->FaultSlot; T->FaultState = 3; T->FaultMatch = 0; }
+    }
+  }
+  if (Ch == '\n') { FaultNewLine (T); return; }
+  if (T->FaultState == 4) { return; }
+  if (Ch >= 'a' && Ch <= 'z') { Ch -= 'a' - 'A'; }
+  if (T->FaultState == 0) {
+    if (Ch == ' ' && T->FaultMatch < 2) { ++T->FaultMatch; return; }
+    if (Ch == 'S' && T->FaultMatch == 2 && !(T->FaultMask & 1)) { T->FaultSlot = 0; }
+    else if (Ch == 'E' && T->FaultMatch == 1 && !(T->FaultMask & 16)) { T->FaultSlot = 4; }
+    else { T->FaultState = 4; return; }
+    T->FaultState = 1; T->FaultMatch = 1;
+    return;
+  }
+  if (T->FaultState == 3) {
+    if (Ch == ' ' || Ch == '\t') { return; }
+    T->FaultState = 1; T->FaultMatch = 0;
+  }
+  Label = FaultLabels[T->FaultSlot];
+  if (Ch != Label[T->FaultMatch]) { T->FaultState = 4; return; }
+  if (++T->FaultMatch == FaultLengths[T->FaultSlot]) {
+    if (T->FaultMask & (1U << T->FaultSlot)) { T->FaultState = 4; return; }
+    T->FaultState = 2; T->FaultDigits = 0; T->FaultValues[T->FaultSlot] = 0;
+  }
+}
+
 void CasEarlyTextFeed (CAS_EARLY_TEXT *T, const unsigned char *B, CAS_U64 Count) {
   CAS_U64 I;
   CAS_U32 N;
   unsigned char Ch, Upper;
   if (!T || (!B && Count)) { return; }
   if (!CasEarlyTextValid (T)) { CasEarlyTextReset (T); }
-  if (T->Frozen) { return; }
   for (I = 0; I < Count; ++I) {
     Ch = B[I];
+    if (T->Frozen) { FaultFeed (T, Ch); continue; }
     if (T->Bytes != ~(CAS_U32)0) { ++T->Bytes; }
     // Capture the first complete handler PC line, preserving its preceding
     // module/load context before X/V registers scroll it away. PcMatch==5 is
@@ -131,7 +199,7 @@ void CasEarlyTextFeed (CAS_EARLY_TEXT *T, const unsigned char *B, CAS_U64 Count)
     else if (Ch == '\n') {
       NextLine (T);
       T->PcMatch = 0;
-      if (T->PcPending) { T->Frozen = 1; T->PcPending = 0; }
+      if (T->PcPending) { T->Frozen = 1; T->PcPending = 0; T->FaultMask = CAS_FAULT_ARMED; }
     }
     else if (Ch == '\b') {
       if (T->Column) { T->Cells[T->Row][--T->Column] = 0; }
@@ -139,7 +207,7 @@ void CasEarlyTextFeed (CAS_EARLY_TEXT *T, const unsigned char *B, CAS_U64 Count)
       N = 4 - (T->Column % 4);
       while (N--) { Put (T, ' '); }
     } else if (Ch >= 32) { Put (T, Ch <= 126 ? Ch : '?'); }
-    if (T->Frozen) { break; }
+    if (T->Frozen && !(T->FaultMask & CAS_FAULT_ARMED)) { break; }
   }
 }
 
@@ -153,12 +221,65 @@ static const unsigned char *Glyph (unsigned char Ch) {
   return Glyph ('?');
 }
 
+static CAS_U32 AddString (unsigned char *Out, CAS_U32 At, const char *In) {
+  while (*In && At < CAS_EARLY_COLS) { Out[At++] = (unsigned char)*In++; }
+  return At;
+}
+
+static CAS_U32 AddFault (unsigned char *Out, CAS_U32 At, const CAS_EARLY_TEXT *T, CAS_U32 Slot) {
+  CAS_U32 I;
+  static const char Hex[] = "0123456789ABCDEF";
+  for (I = 0; I < 16 && At < CAS_EARLY_COLS; ++I) {
+    Out[At++] = T->FaultMask & (1U << Slot) ? Hex[(T->FaultValues[Slot] >> (60 - I * 4)) & 15] : '?';
+  }
+  return At;
+}
+
+static CAS_U32 RenderFault (const CAS_EARLY_TEXT *T, const CAS_FRAMEBUFFER *F, CAS_U32 Y) {
+  CAS_U32 Line, Col, R, C, Start, At, A, Black = 0x101820, White = 0xe4edf8;
+  unsigned char Text[CAS_EARLY_COLS];
+  const unsigned char *G;
+  // Separate four-line band above the original16-row loading/first-PC screen.
+  if (CasDisplayBlt (F, &Black, 0, 0, 0, 12, Y, CAS_EARLY_COLS * 18, 4 * 24, 0)) { return 1; }
+  // Also clear an old banner after reset; never leave stale context visible.
+  if (!(T->FaultMask & (CAS_FAULT_ALL | CAS_FAULT_CONFLICT))) { return 0; }
+  for (Line = 0; Line < 4; ++Line) {
+    for (Col = 0; Col < CAS_EARLY_COLS; ++Col) { Text[Col] = 0; }
+    if (Line == 0) {
+      AddString (Text, 0, T->FaultMask & CAS_FAULT_CONFLICT ? "FAULT CONTEXT (NESTED; UNBOUND)" :
+                 (T->FaultMask & CAS_FAULT_ALL) == CAS_FAULT_ALL ?
+                 "FAULT CONTEXT (SERIAL)" : "FAULT CONTEXT (SERIAL; PARTIAL)");
+    } else {
+      A = Line == 1 ? 0 : Line == 2 ? 4 : 2;
+      At = AddString (Text, 0, Line == 1 ? "SP " : Line == 2 ? "ESR " : "SPSR ");
+      At = AddFault (Text, At, T, A);
+      At = AddString (Text, At, Line == 1 ? " ELR " : Line == 2 ? " FAR " : " FPSR ");
+      AddFault (Text, At, T, A + 1);
+    }
+    for (Col = 0; Col < CAS_EARLY_COLS; ++Col) {
+      G = Glyph (Text[Col]);
+      if (!G) { continue; }
+      for (R = 0; R < 7; ++R) {
+        C = 0;
+        while (C < 5) {
+          if (!(G[R] & (1U << (4 - C)))) { ++C; continue; }
+          Start = C++;
+          while (C < 5 && (G[R] & (1U << (4 - C)))) { ++C; }
+          if (CasDisplayBlt (F, &White, 0, 0, 0, 12 + Col * 18 + Start * 3,
+                             Y + Line * 24 + R * 3, (C - Start) * 3, 3, 0)) { return 1; }
+        }
+      }
+    }
+  }
+  return 0;
+}
+
 CAS_U32 CasEarlyTextRender (const CAS_EARLY_TEXT *T, const CAS_FRAMEBUFFER *F) {
   CAS_U32 Line, Col, R, C, Start, Y, SourceRow, White = 0xe4edf8, Black = 0x101820;
   const unsigned char *G;
   // Fixed cas-sized panel; leave both existing stage and fault bands untouched.
   if (!CasEarlyTextValid (T) || !F || F->Width < 24 + CAS_EARLY_COLS * 18 ||
-      F->Height < 80 + CAS_EARLY_ROWS * 24) { return 1; }
+      F->Height < 80 + (CAS_EARLY_ROWS + 4) * 24 + 12) { return 1; }
   Y = F->Height - 80 - CAS_EARLY_ROWS * 24;
   if (CasDisplayBlt (F, &Black, 0, 0, 0, 12, Y,
                      CAS_EARLY_COLS * 18, CAS_EARLY_ROWS * 24, 0)) { return 1; }
@@ -179,5 +300,5 @@ CAS_U32 CasEarlyTextRender (const CAS_EARLY_TEXT *T, const CAS_FRAMEBUFFER *F) {
       }
     }
   }
-  return 0;
+  return RenderFault (T, F, Y - 4 * 24 - 12);
 }

@@ -6,7 +6,10 @@
 
 #define CAS_EARLY_TEXT_ADDRESS (CAS_LOG_BASE + 0xc00)
 #define CAS_EARLY_TEXT_MAGIC 0x54584543
-#define CAS_EARLY_TEXT_VERSION 3
+#define CAS_EARLY_TEXT_VERSION 4
+#define CAS_FAULT_ARMED 0x80000000U
+#define CAS_FAULT_CONFLICT 0x40000000U
+#define CAS_FAULT_ALL 63U
 #define CAS_EARLY_ROWS 16
 #define CAS_EARLY_COLS 56
 
@@ -14,6 +17,9 @@ typedef struct {
   CAS_U32 Magic, Version, Size, Row, Column, Busy, Bytes, Frames, Frozen, Match;
   unsigned char Cells[CAS_EARLY_ROWS][CAS_EARLY_COLS];
   CAS_U32 PcMatch, PcPending;
+  CAS_U32 FaultState, FaultSlot, FaultMatch, FaultDigits, FaultMask;
+  CAS_U64 FaultValues[6]; // SP, ELR, SPSR, FPSR, ESR, FAR; numeric serial data only
+  CAS_U32 FaultExceptionMatch;
 } CAS_EARLY_TEXT;
 
 typedef char CAS_EARLY_TEXT_FITS[(sizeof (CAS_EARLY_TEXT) <= 0x400) ? 1 : -1];

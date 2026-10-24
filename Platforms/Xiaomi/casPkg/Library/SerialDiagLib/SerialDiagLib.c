@@ -17,6 +17,7 @@ UINTN EFIAPI SerialPortWrite (UINT8 *Buffer, UINTN Count) {
   CAS_DISPLAY_STATE *S;
   CAS_FRAMEBUFFER *F;
   UINTN Written;
+  CAS_U32 WasFrozen, BeforeMask;
   BOOLEAN Interrupts = GetInterruptState ();
   DisableInterrupts ();
   Written = CasRamLogWrite (Buffer, Count);
@@ -24,10 +25,14 @@ UINTN EFIAPI SerialPortWrite (UINT8 *Buffer, UINTN Count) {
   // through framebuffer access. This CPU0 diagnostic has no SMP writers.
   if (!Written || Info->Stage >= CasStageDxe) { goto Done; }
   if (!CasEarlyTextValid (T)) { CasEarlyTextReset (T); }
-  if (*(volatile CAS_U32 *)&T->Busy || T->Frozen) { goto Done; }
+  if (*(volatile CAS_U32 *)&T->Busy || (T->Frozen &&
+      (!(T->FaultMask & CAS_FAULT_ARMED) || (T->FaultMask & CAS_FAULT_CONFLICT) ||
+       (T->FaultMask & CAS_FAULT_ALL) == CAS_FAULT_ALL))) { goto Done; }
   T->Busy = 1;
   MemoryFence ();
+  WasFrozen = T->Frozen; BeforeMask = T->FaultMask;
   CasEarlyTextFeed (T, Buffer, Written);
+  if (WasFrozen && T->FaultMask == BeforeMask) { goto Release; }
   S = CasDisplayState ();
   F = &S->Framebuffer;
   if (S->Magic == CAS_DISPLAY_MAGIC && S->Version == CAS_DISPLAY_VERSION &&
@@ -38,6 +43,7 @@ UINTN EFIAPI SerialPortWrite (UINT8 *Buffer, UINTN Count) {
     if (T->Frames != MAX_UINT32) { ++T->Frames; }
     CasDisplayRefresh ();
   }
+Release:
   MemoryFence ();
   T->Busy = 0;
 Done:
