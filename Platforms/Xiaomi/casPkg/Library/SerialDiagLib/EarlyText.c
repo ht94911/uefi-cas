@@ -3,6 +3,7 @@
 #include <CasEarlyText.h>
 
 static const unsigned char FreezeMarker[] = "STACK DUMP:";
+static const unsigned char PcMarker[] = "PC 0X";
 
 static const struct { unsigned char Code, Rows[7]; } Glyphs[] = {
   {48, {14, 17, 19, 21, 25, 17, 14}},
@@ -74,7 +75,8 @@ static const struct { unsigned char Code, Rows[7]; } Glyphs[] = {
 CAS_U32 CasEarlyTextValid (const CAS_EARLY_TEXT *T) {
   return T && T->Magic == CAS_EARLY_TEXT_MAGIC && T->Version == CAS_EARLY_TEXT_VERSION &&
          T->Size == sizeof (*T) && T->Row < CAS_EARLY_ROWS && T->Column <= CAS_EARLY_COLS &&
-         T->Frozen <= 1 && T->Match < sizeof (FreezeMarker) - 1;
+         T->Frozen <= 1 && T->Match < sizeof (FreezeMarker) - 1 &&
+         T->PcMatch <= sizeof (PcMarker) - 1 && T->PcPending <= 1;
 }
 
 void CasEarlyTextReset (CAS_EARLY_TEXT *T) {
@@ -109,6 +111,14 @@ void CasEarlyTextFeed (CAS_EARLY_TEXT *T, const unsigned char *B, CAS_U64 Count)
   for (I = 0; I < Count; ++I) {
     Ch = B[I];
     if (T->Bytes != ~(CAS_U32)0) { ++T->Bytes; }
+    // Capture the first complete handler PC line, preserving its preceding
+    // module/load context before X/V registers scroll it away. PcMatch==5 is
+    // disabled until a source newline, so display wrapping cannot fake a prefix.
+    if (!T->PcPending && T->PcMatch < sizeof (PcMarker) - 1) {
+      Upper = (Ch >= 'a' && Ch <= 'z') ? Ch - ('a' - 'A') : Ch;
+      if (Upper != PcMarker[T->PcMatch]) { T->PcMatch = sizeof (PcMarker) - 1; }
+      else if (++T->PcMatch == sizeof (PcMarker) - 1) { T->PcPending = 1; }
+    }
     // The actual pinned handler logs ESR/ELR/FAR before its long stack dump.
     // Latch at the start of that dump, including across serial-write chunks.
     if (T->Match || T->Column == 0) {
@@ -118,7 +128,11 @@ void CasEarlyTextFeed (CAS_EARLY_TEXT *T, const unsigned char *B, CAS_U64 Count)
       } else { T->Match = 0; }
     }
     if (Ch == '\r') { T->Column = 0; }
-    else if (Ch == '\n') { NextLine (T); }
+    else if (Ch == '\n') {
+      NextLine (T);
+      T->PcMatch = 0;
+      if (T->PcPending) { T->Frozen = 1; T->PcPending = 0; }
+    }
     else if (Ch == '\b') {
       if (T->Column) { T->Cells[T->Row][--T->Column] = 0; }
     } else if (Ch == '\t') {
