@@ -19,7 +19,7 @@
 #ifndef CAS_XNU_DIAGNOSTICS
 #error CasDiag requires the independent diagnostic firmware profile
 #endif
-#define BUILD_ID "cas-diag-011"
+#define BUILD_ID "cas-diag-012"
 STATIC CD_RANGE mBanks[CD_MAX_RANGES],mSmem[CD_MAX_RANGES],mFree[CD_MAX_RANGES],mReserved[CD_MAX_RANGES];
 STATIC CD_U32 mBankCount,mSmemCount,mFreeCount,mReservedCount,mComplete,mFlags;
 STATIC CD_U8 mPayload[CD_LOG_CAPACITY-CD_LOG_HEADER],mEncoded[CD_LOG_CAPACITY];
@@ -238,10 +238,14 @@ STATIC BOOLEAN RamFacts(VOID) {
     CD_SMEM_PART *R=&mSmemInfo.Parts[I];
     Line("SMEM part=%u base=%016Lx size=%016Lx available=%016Lx attr=%x category=%u domain=%u type=%u\n",
          I,R->Base,R->Size,R->Available,R->Attribute,R->Category,R->Domain,R->Type);
-    if(R->Category==14 && R->Type==1 && R->Attribute==1 && (R->Domain==1 || R->Domain==3) && R->Available) {
+    if(CasDiagSmemSystemPart(R)) {
+      Line("SMEM role=system-evidence only (UEFI ownership still required)\n");
       if(!Add(mSmem,&mSmemCount,R->Base,R->Available))return FALSE;
       if(R->Available<R->Size && !Add(mReserved,&mReservedCount,R->Base+R->Available,R->Size-R->Available))return FALSE;
-    } else if(!Add(mReserved,&mReservedCount,R->Base,R->Size))return FALSE;
+    } else {
+      Line("SMEM role=FULL exclusion (boot/other/unsupported row)\n");
+      if(!Add(mReserved,&mReservedCount,R->Base,R->Size))return FALSE;
+    }
   }
   return mSmemCount>0;
 }

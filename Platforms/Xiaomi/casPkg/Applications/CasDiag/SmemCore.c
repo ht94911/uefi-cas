@@ -2,6 +2,24 @@
 // Independently written bounded decoder. Wire-format sources and version limits
 // are identified in docs/cas-diagnostics.md. No upstream driver code is included.
 #include "SmemCore.h"
+int CasDiagSmemSystemPart(const CD_SMEM_PART *P) {
+  CD_RANGE R;
+  if(!P)return 0;
+  R.Base=P->Base;R.Size=P->Size;
+  return P->Category==14 && P->Type==1 && P->Attribute==1 &&
+         (P->Domain==0 || P->Domain==1 || P->Domain==3) && P->Available &&
+         P->Available<=P->Size && !(P->Available&4095) &&
+         CasDiagRangeValid(R,4096) && P->Base+P->Size<=(1ULL<<48);
+}
+static int KnownBoot1Inside(const CD_SMEM_PART *Boot,const CD_SMEM_PART *Bank) {
+  // Wire enum facts: SDRAM14, SYS_MEMORY1, BOOT_REGION_MEMORY1=2.
+  // Only this documented, observed proper containment is supported here.
+  // The caller still adds the ENTIRE boot row to exclusions, never free RAM.
+  return Boot->Category==14 && Boot->Type==2 && Boot->Attribute<=1 &&
+         Boot->Domain<=3 && CasDiagSmemSystemPart(Bank) &&
+         Boot->Size<Bank->Size && Boot->Base>=Bank->Base &&
+         Boot->Base+Boot->Size<=Bank->Base+Bank->Size;
+}
 static CD_U32 L16(const CD_U8 *P) {return (CD_U32)P[0]|((CD_U32)P[1]<<8);}
 static CD_U32 L32(const CD_U8 *P) {return L16(P)|(L16(P+2)<<16);}
 static CD_U64 L64(const CD_U8 *P) {return L32(P)|((CD_U64)L32(P+4)<<32);}
@@ -115,10 +133,14 @@ static int Parse(CD_SMEM_WORK *W,CD_SMEM_INFO *Info) {
     Range.Base=R->Base;Range.Size=R->Size;
     if(!CasDiagRangeValid(Range,4096) || R->Base+R->Size>(1ULL<<48) ||
         R->Available>R->Size || (R->Available&4095)) {W->Check=43;return CdSmemBounds;}
-    // Duplicate/overlapping entries are ambiguous even when both say SDRAM.
+    // System-bank duplicates, crossing/unknown overlaps remain ambiguous.
+    // A known BOOT_REGION1 properly inside a system bank is a carveout, not
+    // another bank. It can be decoded only because the app excludes it fully.
     for(J=0;J<I;++J)if(R->Base<Info->Parts[J].Base+Info->Parts[J].Size &&
         Info->Parts[J].Base<R->Base+R->Size) {
-      W->OverlapA=I;W->OverlapB=J;W->Check=44;return CdSmemFormat;
+      if(!KnownBoot1Inside(R,&Info->Parts[J]) && !KnownBoot1Inside(&Info->Parts[J],R)) {
+        W->OverlapA=I;W->OverlapB=J;W->Check=44;return CdSmemFormat;
+      }
     }
   }
   return CdSmemValid;

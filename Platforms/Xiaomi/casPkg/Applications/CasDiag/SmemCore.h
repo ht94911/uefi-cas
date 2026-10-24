@@ -32,4 +32,7 @@ enum { CdSmemValid=0, CdSmemRead, CdSmemFormat, CdSmemVersion, CdSmemMissing,
 // or atomic snapshot is claimed. No pointer from SMEM is dereferenced directly.
 int CasDiagSmemRead(CD_SMEM_READ Read, void *Context, CD_SMEM_WORK *Work, CD_SMEM_INFO *Info);
 const char *CasDiagSmemCheckName(CD_U32 Check);
+// Evidence class only: never UEFI allocation ownership. Domain0 is unspecified.
+// Boot/unknown rows are NEVER system candidates and remain full exclusions.
+int CasDiagSmemSystemPart(const CD_SMEM_PART *Part);
 #endif
