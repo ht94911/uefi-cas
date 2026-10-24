@@ -19,7 +19,7 @@
 #ifndef CAS_XNU_DIAGNOSTICS
 #error CasDiag requires the independent diagnostic firmware profile
 #endif
-#define BUILD_ID "cas-diag-005"
+#define BUILD_ID "cas-diag-006"
 STATIC CD_RANGE mBanks[CD_MAX_RANGES],mSmem[CD_MAX_RANGES],mFree[CD_MAX_RANGES],mReserved[CD_MAX_RANGES];
 STATIC CD_U32 mBankCount,mSmemCount,mFreeCount,mReservedCount,mComplete,mFlags;
 STATIC CD_U8 mPayload[CD_LOG_CAPACITY-CD_LOG_HEADER],mEncoded[CD_LOG_CAPACITY];
@@ -162,20 +162,42 @@ STATIC BOOLEAN SmemProvider(VOID) {
   Line("SMEM FDT no-map present=%u bytes=%d\n",P!=NULL,N);
   return P!=NULL && N==0;
 }
-STATIC BOOLEAN RamFacts(VOID) {
-  UINT32 I;int Status;BOOLEAN Provider,PermissionsGood=FALSE;EFI_STATUS S;
+STATIC BOOLEAN PrepareSmemPermissions(BOOLEAN Provider) {
+  EFI_STATUS S;
   EFI_MEMORY_ATTRIBUTE_PROTOCOL *Attributes=NULL;UINT64 Permissions=0;
-  // These are metadata/page-table queries only. No SMEM byte is read until ALL gates agree.
-  Provider=SmemProvider();
+  CONST UINT64 Required=EFI_MEMORY_RO|EFI_MEMORY_XP;
+  // DXE NX policy can replace SEC's RO bit. Only tighten this already mapped,
+  // independently identified reservation; never map/import RAM or clear RP.
+  if(!Provider || !mSmemMapped || (mComplete&5)!=5) {
+    Line("SMEM permission preparation refused: incomplete FDT/UEFI/provider\n");
+    return FALSE;
+  }
   S=gBS->LocateProtocol(&gEfiMemoryAttributeProtocolGuid,NULL,(VOID **)&Attributes);
   Line("SMEM attribute protocol status=%r present=%u\n",S,Attributes!=NULL);
-  if(!EFI_ERROR(S) && Attributes && Attributes->GetMemoryAttributes) {
-    S=Attributes->GetMemoryAttributes(Attributes,CAS_SMEM_BASE,CAS_SMEM_SIZE,&Permissions);
-    PermissionsGood=!EFI_ERROR(S) &&
-      (Permissions&(EFI_MEMORY_RO|EFI_MEMORY_XP|EFI_MEMORY_RP))==(EFI_MEMORY_RO|EFI_MEMORY_XP);
-    Line("SMEM GetMemoryAttributes status=%r actual=%016Lx require-RO-XP=%Lx\n",
-         S,Permissions,(UINT64)(EFI_MEMORY_RO|EFI_MEMORY_XP));
+  if(EFI_ERROR(S) || !Attributes || !Attributes->GetMemoryAttributes)return FALSE;
+  S=Attributes->GetMemoryAttributes(Attributes,CAS_SMEM_BASE,CAS_SMEM_SIZE,&Permissions);
+  Line("SMEM permissions before status=%r actual=%016Lx\n",S,Permissions);
+  if(EFI_ERROR(S) || (Permissions&~Required)!=0)return FALSE;
+  if(Permissions!=Required) {
+    if(!Attributes->SetMemoryAttributes)return FALSE;
+    Line("SMEM adding RO-XP base=%016Lx size=%Lx require=%Lx\n",
+         (UINT64)CAS_SMEM_BASE,(UINT64)CAS_SMEM_SIZE,Required);
+    Persist();
+    S=Attributes->SetMemoryAttributes(Attributes,CAS_SMEM_BASE,CAS_SMEM_SIZE,Required);
+    Line("SMEM SetMemoryAttributes status=%r\n",S);
+    if(EFI_ERROR(S))return FALSE;
   }
+  // A successful setter is not evidence of live permissions. Read them back,
+  // even on the already-protected path; nothing dereferences SMEM here.
+  Permissions=0;
+  S=Attributes->GetMemoryAttributes(Attributes,CAS_SMEM_BASE,CAS_SMEM_SIZE,&Permissions);
+  Line("SMEM permissions verified status=%r actual=%016Lx require=%Lx\n",S,Permissions,Required);
+  return !EFI_ERROR(S) && Permissions==Required;
+}
+STATIC BOOLEAN RamFacts(VOID) {
+  UINT32 I;int Status;BOOLEAN Provider,PermissionsGood;
+  Provider=SmemProvider();
+  PermissionsGood=PrepareSmemPermissions(Provider);
   Line("SMEM gates provider=%u UEFI-reserved-UC=%u RO-XP=%u\n",Provider,mSmemMapped,PermissionsGood);
   Persist();
   if(!Provider || !mSmemMapped || !PermissionsGood)return FALSE;
@@ -348,7 +370,7 @@ EFI_STATUS EFIAPI CasDiagEntry(EFI_HANDLE ImageHandle,EFI_SYSTEM_TABLE *SystemTa
   mBootStamp=mBoot->Reserved[0];LoadPrevious();Line("\nAPP ENTRY build=%a boot=%016Lx previous-status=%d\n",BUILD_ID,mBootStamp,mPreviousStatus);
   gBS->SetWatchdogTimer(0,0,0,NULL);
   for(;;) {
-    UINTN I;gST->ConOut->ClearScreen(gST->ConOut);Print(L"CAS DIAG cas-diag-005 (XNU not loaded)\r\n\r\n");
+    UINTN I;gST->ConOut->ClearScreen(gST->ConOut);Print(L"CAS DIAG %a (XNU not loaded)\r\n\r\n",BUILD_ID);
     for(I=0;I<ARRAY_SIZE(Items);++I)Print(L"%s %s\r\n",I==Selected ? L">" : L" ",Items[I]);
     Print(L"\r\nVolume: move   Power: select   Hold Power: return\r\n");K=Key();
     if(K.ScanCode==SCAN_ESC) {Line("APP RETURN\n");Persist();return EFI_SUCCESS;}
