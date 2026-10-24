@@ -24,7 +24,7 @@ UINTN EFIAPI SerialPortWrite (UINT8 *Buffer, UINTN Count) {
   // through framebuffer access. This CPU0 diagnostic has no SMP writers.
   if (!Written || Info->Stage >= CasStageDxe) { goto Done; }
   if (!CasEarlyTextValid (T)) { CasEarlyTextReset (T); }
-  if (*(volatile CAS_U32 *)&T->Busy) { goto Done; }
+  if (*(volatile CAS_U32 *)&T->Busy || T->Frozen) { goto Done; }
   T->Busy = 1;
   MemoryFence ();
   CasEarlyTextFeed (T, Buffer, Written);

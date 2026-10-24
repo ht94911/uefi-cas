@@ -2,6 +2,8 @@
 // Original compact diagnostic glyphs; no font assets or firmware blobs.
 #include <CasEarlyText.h>
 
+static const unsigned char FreezeMarker[] = "STACK DUMP:";
+
 static const struct { unsigned char Code, Rows[7]; } Glyphs[] = {
   {48, {14, 17, 19, 21, 25, 17, 14}},
   {49, {4, 12, 4, 4, 4, 4, 14}},
@@ -71,7 +73,8 @@ static const struct { unsigned char Code, Rows[7]; } Glyphs[] = {
 
 CAS_U32 CasEarlyTextValid (const CAS_EARLY_TEXT *T) {
   return T && T->Magic == CAS_EARLY_TEXT_MAGIC && T->Version == CAS_EARLY_TEXT_VERSION &&
-         T->Size == sizeof (*T) && T->Row < CAS_EARLY_ROWS && T->Column <= CAS_EARLY_COLS;
+         T->Size == sizeof (*T) && T->Row < CAS_EARLY_ROWS && T->Column <= CAS_EARLY_COLS &&
+         T->Frozen <= 1 && T->Match < sizeof (FreezeMarker) - 1;
 }
 
 void CasEarlyTextReset (CAS_EARLY_TEXT *T) {
@@ -99,12 +102,21 @@ static void Put (CAS_EARLY_TEXT *T, unsigned char Ch) {
 void CasEarlyTextFeed (CAS_EARLY_TEXT *T, const unsigned char *B, CAS_U64 Count) {
   CAS_U64 I;
   CAS_U32 N;
-  unsigned char Ch;
+  unsigned char Ch, Upper;
   if (!T || (!B && Count)) { return; }
   if (!CasEarlyTextValid (T)) { CasEarlyTextReset (T); }
+  if (T->Frozen) { return; }
   for (I = 0; I < Count; ++I) {
     Ch = B[I];
     if (T->Bytes != ~(CAS_U32)0) { ++T->Bytes; }
+    // The actual pinned handler logs ESR/ELR/FAR before its long stack dump.
+    // Latch at the start of that dump, including across serial-write chunks.
+    if (T->Match || T->Column == 0) {
+      Upper = (Ch >= 'a' && Ch <= 'z') ? Ch - ('a' - 'A') : Ch;
+      if (Upper == FreezeMarker[T->Match]) {
+        if (++T->Match == sizeof (FreezeMarker) - 1) { T->Frozen = 1; T->Match = 0; }
+      } else { T->Match = 0; }
+    }
     if (Ch == '\r') { T->Column = 0; }
     else if (Ch == '\n') { NextLine (T); }
     else if (Ch == '\b') {
@@ -113,6 +125,7 @@ void CasEarlyTextFeed (CAS_EARLY_TEXT *T, const unsigned char *B, CAS_U64 Count)
       N = 4 - (T->Column % 4);
       while (N--) { Put (T, ' '); }
     } else if (Ch >= 32) { Put (T, Ch <= 126 ? Ch : '?'); }
+    if (T->Frozen) { break; }
   }
 }
 

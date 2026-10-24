@@ -6,12 +6,12 @@
 
 #define CAS_EARLY_TEXT_ADDRESS (CAS_LOG_BASE + 0xc00)
 #define CAS_EARLY_TEXT_MAGIC 0x54584543
-#define CAS_EARLY_TEXT_VERSION 1
+#define CAS_EARLY_TEXT_VERSION 2
 #define CAS_EARLY_ROWS 16
 #define CAS_EARLY_COLS 56
 
 typedef struct {
-  CAS_U32 Magic, Version, Size, Row, Column, Busy, Bytes, Frames;
+  CAS_U32 Magic, Version, Size, Row, Column, Busy, Bytes, Frames, Frozen, Match;
   unsigned char Cells[CAS_EARLY_ROWS][CAS_EARLY_COLS];
 } CAS_EARLY_TEXT;
 
