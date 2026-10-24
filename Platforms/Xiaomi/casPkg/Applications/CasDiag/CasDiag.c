@@ -19,7 +19,7 @@
 #ifndef CAS_XNU_DIAGNOSTICS
 #error CasDiag requires the independent diagnostic firmware profile
 #endif
-#define BUILD_ID "cas-diag-009"
+#define BUILD_ID "cas-diag-010"
 STATIC CD_RANGE mBanks[CD_MAX_RANGES],mSmem[CD_MAX_RANGES],mFree[CD_MAX_RANGES],mReserved[CD_MAX_RANGES];
 STATIC CD_U32 mBankCount,mSmemCount,mFreeCount,mReservedCount,mComplete,mFlags;
 STATIC CD_U8 mPayload[CD_LOG_CAPACITY-CD_LOG_HEADER],mEncoded[CD_LOG_CAPACITY];
@@ -213,6 +213,17 @@ STATIC BOOLEAN RamFacts(VOID) {
          mSmemWork.Check,CasDiagSmemCheckName(mSmemWork.Check),mSmemWork.Compare,mSmemWork.Reads,mSmemWork.Used);
     Line("SMEM last-read offset=%08x bytes=%u metadata-bytes=%u\n",
          mSmemWork.ReadOffset,mSmemWork.ReadLength,mSmemWork.SampleBytes);
+    // Already decoded numeric prefix, including the rejected row. These are
+    // observations from this pass only, never eligible owned-memory results.
+    Line("SMEM partial rows=%u table-count=%u overlap-a=%u overlap-b=%u (NO OWNERSHIP)\n",
+         mSmemWork.ParsedRows,mSmemInfo.Count,mSmemWork.OverlapA,mSmemWork.OverlapB);
+    if(mSmemWork.ParsedRows<=mSmemInfo.Count && mSmemWork.ParsedRows<=CD_SMEM_PARTS)
+      for(J=0;J<mSmemWork.ParsedRows;++J) {
+        CD_SMEM_PART *R=&mSmemInfo.Parts[J];
+        Line("SMEM seen-row=%u base=%016Lx size=%016Lx available=%016Lx\n",J,R->Base,R->Size,R->Available);
+        Line("SMEM seen-row=%u attr=%x category=%u domain=%u type=%u\n",
+             J,R->Attribute,R->Category,R->Domain,R->Type);
+      }
     // Only bytes already returned by a bounded metadata read, four per line.
     // The sample is empty for item payloads or a failed callback.
     for(J=0;J+4<=mSmemWork.SampleBytes;J+=4) {

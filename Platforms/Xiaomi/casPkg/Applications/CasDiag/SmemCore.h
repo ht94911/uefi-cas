@@ -24,6 +24,7 @@ typedef struct {
   CD_U32 Check, ReadOffset, ReadLength, SampleBytes;
   CD_U8 Sample[48];
   CD_U32 PartitionOffset, PartitionSize, PartitionFlags, PartitionCacheline;
+  CD_U32 ParsedRows, OverlapA, OverlapB;
 } CD_SMEM_WORK;
 enum { CdSmemValid=0, CdSmemRead, CdSmemFormat, CdSmemVersion, CdSmemMissing,
        CdSmemBounds, CdSmemChanging, CdSmemBudget };

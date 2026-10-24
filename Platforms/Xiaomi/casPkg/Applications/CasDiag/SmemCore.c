@@ -111,12 +111,15 @@ static int Parse(CD_SMEM_WORK *W,CD_SMEM_INFO *Info) {
     const CD_U8 *P=T+24+I*Stride;CD_SMEM_PART *R=&Info->Parts[I];CD_RANGE Range;
     R->Base=L64(P+16);R->Size=L64(P+24);R->Available=Version==1 ? R->Size : L64(P+64);
     R->Attribute=L32(P+32);R->Category=L32(P+36);R->Domain=L32(P+40);R->Type=L32(P+44);
+    W->ParsedRows=I+1;
     Range.Base=R->Base;Range.Size=R->Size;
     if(!CasDiagRangeValid(Range,4096) || R->Base+R->Size>(1ULL<<48) ||
         R->Available>R->Size || (R->Available&4095)) {W->Check=43;return CdSmemBounds;}
     // Duplicate/overlapping entries are ambiguous even when both say SDRAM.
     for(J=0;J<I;++J)if(R->Base<Info->Parts[J].Base+Info->Parts[J].Size &&
-        Info->Parts[J].Base<R->Base+R->Size) {W->Check=44;return CdSmemFormat;}
+        Info->Parts[J].Base<R->Base+R->Size) {
+      W->OverlapA=I;W->OverlapB=J;W->Check=44;return CdSmemFormat;
+    }
   }
   return CdSmemValid;
 }
@@ -130,6 +133,7 @@ int CasDiagSmemRead(CD_SMEM_READ Reader,void *Context,CD_SMEM_WORK *W,CD_SMEM_IN
   for(I=0;I<sizeof(W->Sample);++I)W->Sample[I]=0;
   for(Pass=0;Pass<2;++Pass) {
     W->Compare=Pass;W->Cursor=W->Reads=0;
+    W->ParsedRows=0;W->OverlapA=W->OverlapB=CD_SMEM_PARTS;
     Status=Locate(W,Info);if(Status)return Status;
     Status=Parse(W,Info);if(Status)return Status;
   }
