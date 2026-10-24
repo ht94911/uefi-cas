@@ -19,7 +19,7 @@
 #ifndef CAS_XNU_DIAGNOSTICS
 #error CasDiag requires the independent diagnostic firmware profile
 #endif
-#define BUILD_ID "cas-diag-007"
+#define BUILD_ID "cas-diag-008"
 STATIC CD_RANGE mBanks[CD_MAX_RANGES],mSmem[CD_MAX_RANGES],mFree[CD_MAX_RANGES],mReserved[CD_MAX_RANGES];
 STATIC CD_U32 mBankCount,mSmemCount,mFreeCount,mReservedCount,mComplete,mFlags;
 STATIC CD_U8 mPayload[CD_LOG_CAPACITY-CD_LOG_HEADER],mEncoded[CD_LOG_CAPACITY];
@@ -204,6 +204,9 @@ STATIC BOOLEAN RamFacts(VOID) {
   Status=CasDiagSmemRead(SmemRead,NULL,&mSmemWork,&mSmemInfo);
   Line("SMEM readonly base=%016Lx bytes=%Lx status=%d heap-version=%u table-version=%u item-offset=%x item-size=%u\n",
        (UINT64)CAS_SMEM_BASE,(UINT64)CAS_SMEM_SIZE,Status,mSmemInfo.SmemVersion,mSmemInfo.TableVersion,mSmemInfo.ItemOffset,mSmemInfo.ItemSize);
+  if(mSmemInfo.SmemVersion==12)
+    Line("SMEM global offset=%x size=%x flags=%x cacheline=%x\n",mSmemWork.PartitionOffset,
+         mSmemWork.PartitionSize,mSmemWork.PartitionFlags,mSmemWork.PartitionCacheline);
   if(Status!=CdSmemValid) {
     CD_U32 J;
     Line("SMEM reject check=%u name=%a pass=%u reads=%u trace-bytes=%u\n",

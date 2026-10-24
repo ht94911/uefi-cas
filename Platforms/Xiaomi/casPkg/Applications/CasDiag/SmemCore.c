@@ -56,9 +56,15 @@ static int Locate(CD_SMEM_WORK *W,CD_SMEM_INFO *Info) {
     for(I=0;I<Count;++I) {
       CD_U8 E[48];GET(CD_SMEM_BYTES-4096+32+I*48,48,E);
       if(L16(E+12)!=0xfffe || L16(E+14)!=0xfffe)continue;
-      REFUSE(Found++ || L32(E+8) || !Zero(E+20,28),CdSmemFormat,22);
+      // Linux's v12 directory contract leaves flags unused. They describe the
+      // partition, not RAM-row access permissions; never derive ownership here.
+      REFUSE(Found++ || !Zero(E+20,28),CdSmemFormat,22);
       Part=L32(E);PartSize=L32(E+4);Size=L32(E+16);
-      if(Part<8400 || (Part&7) || Part>CD_SMEM_BYTES-4096 || PartSize<32 ||
+      W->PartitionOffset=Part;W->PartitionSize=PartSize;
+      W->PartitionFlags=L32(E+8);W->PartitionCacheline=Size;
+      // The legacy 8400-byte allocation table is v11-only. In this v12
+      // profile reserve the first/last 4KiB and bound every partition read.
+      if(Part<4096 || (Part&7) || Part>CD_SMEM_BYTES-4096 || PartSize<32 ||
           PartSize>CD_SMEM_BYTES-4096-Part || Size<16 || Size>4096 || (Size&(Size-1))) {W->Check=23;return CdSmemBounds;}
     }
     REFUSE(!Found,CdSmemMissing,24);
@@ -120,6 +126,7 @@ int CasDiagSmemRead(CD_SMEM_READ Reader,void *Context,CD_SMEM_WORK *W,CD_SMEM_IN
   for(I=0;I<sizeof(*Info);++I)Bytes[I]=0;
   W->Read=Reader;W->Context=Context;W->Used=W->Cursor=W->Reads=W->Compare=0;
   W->Check=W->ReadOffset=W->ReadLength=W->SampleBytes=0;
+  W->PartitionOffset=W->PartitionSize=W->PartitionFlags=W->PartitionCacheline=0;
   for(I=0;I<sizeof(W->Sample);++I)W->Sample[I]=0;
   for(Pass=0;Pass<2;++Pass) {
     W->Compare=Pass;W->Cursor=W->Reads=0;
