@@ -47,6 +47,51 @@ int CasDiagPublishEligible(CD_RANGE C,const CD_RANGE *Banks,CD_U32 BankCount,
   for(I=0;I<ReservedCount;++I)if(overlap(C,Reserved[I]))return CdProtected;
   return CdAllowed;
 }
+static int cpu0range(CD_RANGE C) {
+ return CasDiagRangeValid(C,CD_CPU0_ALIGNMENT) && C.Base==CD_CPU0_BASE && C.Size==CD_REQUEST &&
+  C.Base>=CD_PUBLISH_BASE && C.Base+C.Size<=CD_PUBLISH_BASE+CD_PUBLISH_SIZE;
+}
+int CasDiagCpu0Eligible(CD_RANGE C,const CD_RANGE *Banks,CD_U32 BankCount,
+ const CD_RANGE *Smem,CD_U32 SmemCount,const CD_RANGE *Free,CD_U32 FreeCount,
+ const CD_RANGE *Reserved,CD_U32 ReservedCount,CD_U32 Complete) {
+ CD_U32 I;
+ if(!cpu0range(C))return CdBadRange;
+ if(Complete!=CD_FACTS_COMPLETE)return CdIncomplete;
+ if(!ranges(Banks,BankCount,1)||!ranges(Smem,SmemCount,1)||!ranges(Free,FreeCount,1)||!ranges(Reserved,ReservedCount,0))return CdBadRange;
+ if(!covered(Banks,BankCount,C))return CdNoFdtBank;
+ if(!covered(Smem,SmemCount,C))return CdNoSmemBank;
+ if(!covered(Free,FreeCount,C))return CdNoUefiOwnership;
+ for(I=0;I<ReservedCount;I++)if(overlap(C,Reserved[I]))return CdProtected;
+ return CdAllowed;
+}
+int CasDiagHeldCoverage(CD_RANGE C,const CD_RANGE *Owned,CD_U32 Count) {
+ CD_U64 Cursor;CD_U32 I,Step;int Found;
+ if(!cpu0range(C)||!Count||!ranges(Owned,Count,1))return 0;
+ Cursor=C.Base;
+ for(Step=0;Step<Count && Cursor<C.Base+C.Size;Step++) {
+  Found=0;
+  for(I=0;I<Count;I++)if(Owned[I].Base<=Cursor && Cursor<Owned[I].Base+Owned[I].Size) {
+   Cursor=Owned[I].Base+Owned[I].Size;Found=1;break;
+  }
+  if(!Found)return 0;
+ }
+ return Cursor>=C.Base+C.Size;
+}
+CD_PROBE_RESULT CasDiagRunHeldProbe(CD_RANGE C,int Gate,const CD_HELD_PROBE_IO *Io,void *Context) {
+ CD_PROBE_RESULT R={CdProbeDenied,0,0};CD_U32 Pass;
+ if(Gate!=CdAllowed || !cpu0range(C)||!Io||!Io->Write||!Io->Cache||!Io->Read||!Io->Clear)return R;
+ R.Result=CdProbePass;
+ for(Pass=0;Pass<2;Pass++) {
+  if(Io->Write(Context,C,Pass)){R.Result=CdProbeWrite;break;}
+  if(Io->Cache(Context,C)){R.Result=CdProbeCache;break;}
+  if(Io->Read(Context,C,Pass)){R.Result=CdProbeRead;break;}
+ }
+ R.CleanupFailed=Io->Clear(Context,C)!=0;
+ if(Io->Cache(Context,C))R.CleanupFailed=1;
+ if(R.Result==CdProbePass && R.CleanupFailed)R.Result=CdProbeClear;
+ // Ownership is deliberately retained; the caller frees only on failure.
+ return R;
+}
 CD_U64 CasDiagPattern(CD_U64 Address, CD_U32 Pass) {
   CD_U64 Value=(Address*0x9e3779b185ebca87ULL)^0xc35a96f0271b4de8ULL;
   return Pass ? ~Value : Value;

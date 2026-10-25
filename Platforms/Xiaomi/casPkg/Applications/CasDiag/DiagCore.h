@@ -28,6 +28,12 @@ int CasDiagEligible(CD_RANGE Candidate, const CD_RANGE *Banks, CD_U32 BankCount,
 // Admission for a fixed unpublished 512MiB window; never an ownership pass.
 int CasDiagPublishEligible(CD_RANGE Candidate,const CD_RANGE *Banks,CD_U32 BankCount,
   const CD_RANGE *Smem,CD_U32 SmemCount,const CD_RANGE *Reserved,CD_U32 ReservedCount,CD_U32 Complete);
+#define CD_CPU0_BASE 0x100004000ULL
+#define CD_CPU0_ALIGNMENT 4096ULL
+int CasDiagCpu0Eligible(CD_RANGE Candidate,const CD_RANGE *Banks,CD_U32 BankCount,
+ const CD_RANGE *Smem,CD_U32 SmemCount,const CD_RANGE *Free,CD_U32 FreeCount,
+ const CD_RANGE *Reserved,CD_U32 ReservedCount,CD_U32 Complete);
+int CasDiagHeldCoverage(CD_RANGE Candidate,const CD_RANGE *Owned,CD_U32 Count);
 CD_U64 CasDiagPattern(CD_U64 Address, CD_U32 Pass);
 CD_U32 CasDiagLogEncode(CD_U8 *Output, CD_U32 Capacity, const CD_U8 *Payload,
   CD_U32 Length, CD_U64 Sequence, CD_U64 BootStamp, CD_U32 Flags, const char *Build);
@@ -45,6 +51,15 @@ typedef struct { int Result, CleanupFailed, ReleaseFailed; } CD_PROBE_RESULT;
 enum { CdProbePass=0, CdProbeDenied, CdProbeAllocation, CdProbeAddress, CdProbeWrite,
   CdProbeCache, CdProbeRead, CdProbeClear, CdProbeRelease };
 CD_PROBE_RESULT CasDiagRunProbe(CD_RANGE Range, int Gate, const CD_PROBE_IO *Io, void *Context);
+
+// Tests a range already held by this loader. No allocate/free callback exists.
+typedef struct {
+ int (*Write)(void *,CD_RANGE,CD_U32);
+ int (*Cache)(void *,CD_RANGE);
+ int (*Read)(void *,CD_RANGE,CD_U32);
+ int (*Clear)(void *,CD_RANGE);
+} CD_HELD_PROBE_IO;
+CD_PROBE_RESULT CasDiagRunHeldProbe(CD_RANGE Range,int Gate,const CD_HELD_PROBE_IO *Io,void *Context);
 
 // Reservation inputs use the already-validated parent cells=2/2.
 // Dynamic outputs are the WHOLE alloc-ranges, never guessed placements.
