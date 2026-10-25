@@ -33,7 +33,7 @@
 
 [PcdsFixedAtBuild]
   gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVendor|L"UniXNU cas development"
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVersionString|L"cas-cpu0-002"
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVersionString|L"cas-cpu0-003"
   gEfiMdeModulePkgTokenSpaceGuid.PcdEmuVariableNvModeEnable|TRUE
   gEfiMdeModulePkgTokenSpaceGuid.PcdResetOnMemoryTypeInformationChange|FALSE
   gEfiMdeModulePkgTokenSpaceGuid.PcdMaxVariableSize|0x2000
