@@ -92,6 +92,13 @@ _Start:
   mov   w0, #1
   bl    CasDisplayMark
 
+#ifdef CAS_TRACE_RECOVERY_ONLY
+  // No FD copy, SEC/DXE/ArmCpuDxe, boot services, or XNU execution.
+  bl    CasTraceRecoverEarly
+10: wfe
+  b     10b
+#endif
+
   adr   x3, _Payload
   ldr   x4, =CAS_FD_BASE
   ldr   x5, =CAS_FD_SIZE
