@@ -19,6 +19,7 @@
   UefiApplicationEntryPoint
   UefiBootServicesTableLib
   UefiRuntimeServicesTableLib
+  DxeServicesTableLib
   UefiLib
   BaseLib
   BaseMemoryLib

@@ -11,6 +11,8 @@ typedef struct { CD_U32 Length, Flags; CD_U64 Sequence, BootStamp; CD_U8 Build[3
 #define CD_LOG_HEADER 96U
 #define CD_LOG_CAPACITY 65536U
 #define CD_REQUEST 0x10000000ULL
+#define CD_PUBLISH_BASE 0x100000000ULL
+#define CD_PUBLISH_SIZE 0x20000000ULL
 #define CD_ALIGNMENT 0x200000ULL
 #define CD_MAX_RANGES 128U
 #define CD_FACTS_COMPLETE 15U
@@ -23,6 +25,9 @@ int CasDiagRangeValid(CD_RANGE Range, CD_U64 Alignment);
 int CasDiagEligible(CD_RANGE Candidate, const CD_RANGE *Banks, CD_U32 BankCount,
   const CD_RANGE *Smem, CD_U32 SmemCount, const CD_RANGE *Free, CD_U32 FreeCount,
   const CD_RANGE *Reserved, CD_U32 ReservedCount, CD_U32 Complete);
+// Admission for a fixed unpublished 512MiB window; never an ownership pass.
+int CasDiagPublishEligible(CD_RANGE Candidate,const CD_RANGE *Banks,CD_U32 BankCount,
+  const CD_RANGE *Smem,CD_U32 SmemCount,const CD_RANGE *Reserved,CD_U32 ReservedCount,CD_U32 Complete);
 CD_U64 CasDiagPattern(CD_U64 Address, CD_U32 Pass);
 CD_U32 CasDiagLogEncode(CD_U8 *Output, CD_U32 Capacity, const CD_U8 *Payload,
   CD_U32 Length, CD_U64 Sequence, CD_U64 BootStamp, CD_U32 Flags, const char *Build);

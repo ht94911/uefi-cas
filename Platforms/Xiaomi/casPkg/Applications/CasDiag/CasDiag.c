@@ -5,6 +5,8 @@
 #include <Protocol/GraphicsOutput.h>
 #include <Protocol/MemoryAttribute.h>
 #include <Library/BaseLib.h>
+#include <PiDxe.h>
+#include <Library/DxeServicesTableLib.h>
 #include <Library/BaseMemoryLib.h>
 #include <Library/CacheMaintenanceLib.h>
 #include <Library/FdtLib.h>
@@ -19,7 +21,7 @@
 #ifndef CAS_XNU_DIAGNOSTICS
 #error CasDiag requires the independent diagnostic firmware profile
 #endif
-#define BUILD_ID "cas-diag-012"
+#define BUILD_ID "cas-diag-013"
 STATIC CD_RANGE mBanks[CD_MAX_RANGES],mSmem[CD_MAX_RANGES],mFree[CD_MAX_RANGES],mReserved[CD_MAX_RANGES];
 STATIC CD_U32 mBankCount,mSmemCount,mFreeCount,mReservedCount,mComplete,mFlags;
 STATIC CD_U8 mPayload[CD_LOG_CAPACITY-CD_LOG_HEADER],mEncoded[CD_LOG_CAPACITY];
@@ -32,6 +34,8 @@ STATIC BOOLEAN mDropped;
 STATIC CD_SMEM_WORK mSmemWork;
 STATIC CD_SMEM_INFO mSmemInfo;
 STATIC BOOLEAN mSmemMapped;
+STATIC BOOLEAN mPublishAttempted,mPublishFailed;
+STATIC UINT64 mHighMap[0x10000/sizeof(UINT64)];
 
 STATIC VOID Line(CONST CHAR8 *Format, ...) {
   CHAR8 Text[256];VA_LIST Args;UINTN N;
@@ -310,6 +314,66 @@ STATIC VOID Enumerate(VOID) {
   Line("ENUM complete-mask=%u required=%u banks=%u SMEM=%u conventional=%u exclusions=%u\n",mComplete,CD_FACTS_COMPLETE,mBankCount,mSmemCount,mFreeCount,mReservedCount);
   Persist();
 }
+// These helpers query descriptors and permissions, never target RAM data.
+STATIC BOOLEAN HighPermissions(CD_RANGE R) {
+  EFI_MEMORY_ATTRIBUTE_PROTOCOL *P=NULL;EFI_STATUS S;UINT64 A=0,B=0;
+  S=gBS->LocateProtocol(&gEfiMemoryAttributeProtocolGuid,NULL,(VOID **)&P);
+  if(EFI_ERROR(S) || !P || !P->GetMemoryAttributes)return FALSE;
+  S=P->GetMemoryAttributes(P,R.Base,R.Size,&A);
+  if(EFI_ERROR(S) || A!=EFI_MEMORY_XP)return FALSE;
+  S=P->GetMemoryAttributes(P,R.Base,R.Size,&B);
+  Line("HIGH mapped permissions status=%r first=%Lx second=%Lx require=XP\n",S,A,B);
+  return !EFI_ERROR(S) && B==EFI_MEMORY_XP;
+}
+STATIC BOOLEAN HighGcd(CD_RANGE R,BOOLEAN Published) {
+  EFI_GCD_MEMORY_SPACE_DESCRIPTOR D;EFI_STATUS S;
+  if(!gDS || !gDS->GetMemorySpaceDescriptor || !gDS->AddMemorySpace)return FALSE;
+  ZeroMem(&D,sizeof(D));S=gDS->GetMemorySpaceDescriptor(R.Base,&D);
+  Line("HIGH GCD status=%r type=%u base=%016Lx bytes=%016Lx caps=%Lx attr=%Lx owner=%u device=%u\n",
+       S,D.GcdMemoryType,D.BaseAddress,D.Length,D.Capabilities,D.Attributes,D.ImageHandle!=NULL,D.DeviceHandle!=NULL);
+  if(EFI_ERROR(S) || !D.Length || D.BaseAddress>(~0ULL)-D.Length ||
+     D.BaseAddress>R.Base || D.BaseAddress+D.Length<R.Base+R.Size || D.DeviceHandle)return FALSE;
+  if(!Published)return D.GcdMemoryType==EfiGcdMemoryTypeNonExistent &&
+    !D.ImageHandle && !D.Capabilities && !D.Attributes;
+  return D.GcdMemoryType==EfiGcdMemoryTypeSystemMemory && D.ImageHandle &&
+    (D.Capabilities&(EFI_MEMORY_WB|EFI_MEMORY_XP))==(EFI_MEMORY_WB|EFI_MEMORY_XP);
+}
+STATIC BOOLEAN HighUefiAbsent(CD_RANGE R) {
+  UINTN Size=sizeof(mHighMap),KeyValue,Stride=sizeof(EFI_MEMORY_DESCRIPTOR),I;UINT32 Version;
+  EFI_MEMORY_DESCRIPTOR *D;EFI_STATUS S=gBS->GetMemoryMap(&Size,(VOID *)mHighMap,&KeyValue,&Stride,&Version);
+  if(EFI_ERROR(S) || Version!=EFI_MEMORY_DESCRIPTOR_VERSION || Stride<sizeof(*D) || Stride>4096 ||
+     !Size || Size>sizeof(mHighMap) || Size%Stride || Size/Stride>1024)return FALSE;
+  for(I=0;I<Size/Stride;++I) {
+    CD_RANGE V;D=(VOID *)((UINT8 *)mHighMap+I*Stride);
+    if(D->NumberOfPages>(~0ULL)/4096)return FALSE;
+    V.Base=D->PhysicalStart;V.Size=D->NumberOfPages*4096;
+    if(!CasDiagRangeValid(V,4096) || (V.Base<R.Base+R.Size && R.Base<V.Base+V.Size))return FALSE;
+  }
+  return TRUE;
+}
+STATIC VOID PublishHigh(VOID) {
+  CD_RANGE R={CAS_DIAG_HIGH_BASE,CAS_DIAG_HIGH_SIZE},ProbeRange={CD_PUBLISH_BASE,CD_REQUEST};
+  int Gate;EFI_STATUS S;
+  if(mPublishAttempted) {Line("HIGH publish already attempted; recover before a new trial\n");Persist();return;}
+  mPublishAttempted=TRUE;mPublishFailed=TRUE;
+  Enumerate();
+  Gate=CasDiagPublishEligible(R,mBanks,mBankCount,mSmem,mSmemCount,mReserved,mReservedCount,mComplete);
+  Line("HIGH publication admission gate=%d mask=%u (not ownership)\n",Gate,mComplete);
+  if(Gate!=CdAllowed || mDropped || !HighGcd(R,FALSE) || !HighUefiAbsent(R) || !HighPermissions(R)) {
+    Line("HIGH publication refused before AddMemorySpace; return to Android\n");Persist();return;
+  }
+  Line("HIGH publish INTENT base=%016Lx bytes=%016Lx caps=WB-XP; no data access\n",R.Base,R.Size);Persist();
+  if(mDropped)return;
+  S=gDS->AddMemorySpace(EfiGcdMemoryTypeSystemMemory,R.Base,R.Size,EFI_MEMORY_WB|EFI_MEMORY_XP);
+  Line("HIGH AddMemorySpace status=%r; errors may have partial side effects\n",S);Persist();
+  if(EFI_ERROR(S) || !HighGcd(R,TRUE) || !HighPermissions(ProbeRange) || !UefiFacts(FALSE)) {
+    Line("HIGH publication verification FAILED; no retry or probe; return to Android\n");Persist();return;
+  }
+  Gate=CasDiagEligible(ProbeRange,mBanks,mBankCount,mSmem,mSmemCount,mFree,mFreeCount,mReserved,mReservedCount,mComplete);
+  Line("HIGH publication verified probe-gate=%d mask=%u (allocation/readback NOT RUN)\n",Gate,mComplete);
+  if(Gate==CdAllowed && !mDropped)mPublishFailed=FALSE;
+  Persist();
+}
 STATIC int ProbeAllocate(void *Context,CD_RANGE R,CD_U64 *Actual) {
   EFI_PHYSICAL_ADDRESS Address=R.Base;EFI_STATUS S;
   (VOID)Context;S=gBS->AllocatePages(AllocateAddress,EfiLoaderData,(UINTN)(R.Size/4096),&Address);
@@ -337,6 +401,7 @@ STATIC int ProbeFree(void *Context,CD_RANGE R) {
 STATIC VOID Probe(VOID) {
   CD_RANGE C={0x100000000ULL,CD_REQUEST};INTN Gate;CD_PROBE_RESULT Result;
   STATIC CONST CD_PROBE_IO Io={ProbeAllocate,ProbeWrite,ProbeCache,ProbeRead,ProbeClear,ProbeFree};
+  if(mPublishFailed) {Line("HIGH probe refused after publication failure; return to Android\n");Persist();return;}
   Enumerate();if(!UefiFacts(FALSE))mComplete&=~4U;
   Gate=CasDiagEligible(C,mBanks,mBankCount,mSmem,mSmemCount,mFree,mFreeCount,mReserved,mReservedCount,mComplete);
   Result=CasDiagRunProbe(C,(int)Gate,&Io,NULL);
@@ -380,7 +445,7 @@ STATIC VOID View(VOID) {
   }
 }
 EFI_STATUS EFIAPI CasDiagEntry(EFI_HANDLE ImageHandle,EFI_SYSTEM_TABLE *SystemTable) {
-  EFI_INPUT_KEY K;UINTN Selected=0;CONST CHAR16 *Items[]={L"Enumerate current facts",L"Probe owned high 256 MiB (guards first)",L"Read recovered/current log",L"Mark and request warm reset",L"Return to UniXNU"};
+  EFI_INPUT_KEY K;UINTN Selected=0;CONST CHAR16 *Items[]={L"Enumerate current facts",L"Prepare high RAM ownership (512 MiB)",L"Probe owned high 256 MiB (guards first)",L"Read recovered/current log",L"Mark and request warm reset",L"Return to UniXNU"};
   (VOID)ImageHandle;(VOID)SystemTable;
   mBoot=(VOID *)(UINTN)CAS_LOG_BASE;
   if(!gST->ConOut || !gST->ConIn)return EFI_NOT_READY;
@@ -411,9 +476,10 @@ EFI_STATUS EFIAPI CasDiagEntry(EFI_HANDLE ImageHandle,EFI_SYSTEM_TABLE *SystemTa
     else if(K.UnicodeChar==L'\r') {
       gST->ConOut->ClearScreen(gST->ConOut);
       if(Selected==0) {Enumerate();View();}
-      else if(Selected==1) {Probe();View();}
-      else if(Selected==2)View();
-      else if(Selected==3) {
+      else if(Selected==1) {PublishHigh();View();}
+      else if(Selected==2) {Probe();View();}
+      else if(Selected==3)View();
+      else if(Selected==4) {
         Line("CONTROLLED WARM RESET REQUESTED; survival not assumed\n");mFlags|=CD_WARM_REQUESTED;Persist();
         gRT->ResetSystem(EfiResetWarm,EFI_SUCCESS,0,NULL);Line("ResetSystem returned unexpectedly\n");Persist();View();
       } else {Line("APP RETURN\n");Persist();return EFI_SUCCESS;}

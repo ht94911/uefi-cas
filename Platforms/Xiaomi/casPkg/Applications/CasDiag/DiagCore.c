@@ -36,6 +36,17 @@ int CasDiagEligible(CD_RANGE C, const CD_RANGE *Banks, CD_U32 BankCount,
   for (I=0; I<ReservedCount; ++I) if (overlap(C,Reserved[I])) return CdProtected;
   return CdAllowed;
 }
+int CasDiagPublishEligible(CD_RANGE C,const CD_RANGE *Banks,CD_U32 BankCount,
+  const CD_RANGE *Smem,CD_U32 SmemCount,const CD_RANGE *Reserved,CD_U32 ReservedCount,CD_U32 Complete) {
+  CD_U32 I;
+  if(!CasDiagRangeValid(C,CD_ALIGNMENT) || C.Base!=CD_PUBLISH_BASE || C.Size!=CD_PUBLISH_SIZE)return CdBadRange;
+  if(Complete!=CD_FACTS_COMPLETE)return CdIncomplete;
+  if(!ranges(Banks,BankCount,1) || !ranges(Smem,SmemCount,1) || !ranges(Reserved,ReservedCount,0))return CdBadRange;
+  if(!covered(Banks,BankCount,C))return CdNoFdtBank;
+  if(!covered(Smem,SmemCount,C))return CdNoSmemBank;
+  for(I=0;I<ReservedCount;++I)if(overlap(C,Reserved[I]))return CdProtected;
+  return CdAllowed;
+}
 CD_U64 CasDiagPattern(CD_U64 Address, CD_U32 Pass) {
   CD_U64 Value=(Address*0x9e3779b185ebca87ULL)^0xc35a96f0271b4de8ULL;
   return Pass ? ~Value : Value;
