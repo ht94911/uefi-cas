@@ -32,6 +32,8 @@ STATIC VOID Stop (EFI_STATUS Status) {
   CpuDeadLoop ();
 }
 
+#include <CasSharedInitrd.h>
+
 VOID SecEntry (UINTN FdtAddress, UINTN InfoAddress) {
   EFI_STATUS Status;
   EFI_HOB_HANDOFF_INFO_TABLE *HobList;
@@ -56,6 +58,9 @@ VOID SecEntry (UINTN FdtAddress, UINTN InfoAddress) {
   if (FdtCheckHeader ((VOID *)FdtAddress) != 0 || FdtTotalSize ((VOID *)FdtAddress) != Info->FdtSize) {
     Stop (EFI_COMPROMISED_DATA);
   }
+#ifdef CAS_UPSTREAM_PROFILE
+  if (!CasPrepareSharedInitrd ((VOID *)FdtAddress, Info)) { Stop (EFI_COMPROMISED_DATA); }
+#endif
   // Preserve the physical/command-mode display and all SMMU state from ABL.
   // No framebuffer clear, old-XBL lookup, clock or Qualcomm platform init.
   if (ArmReadCntFrq () != CAS_TIMER_HZ) {
@@ -127,6 +132,9 @@ VOID SecEntry (UINTN FdtAddress, UINTN InfoAddress) {
       BuildGuidDataHob (&gCasBootInfoGuid, Info, sizeof (*Info)) == NULL) {
     Stop (EFI_OUT_OF_RESOURCES);
   }
+#ifdef CAS_UPSTREAM_PROFILE
+  if (BuildGuidDataHob (&mUniXNUEntryArgHobGuid, &Dtb, sizeof (Dtb)) == NULL) { Stop (EFI_OUT_OF_RESOURCES); }
+#endif
   Info->Stage = CasStageHobs;
   CasDisplayMark (CasStageHobs);
   DEBUG ((DEBUG_WARN, "cas SEC: MMU/HOB ready; decompressing DXE FV\n"));
