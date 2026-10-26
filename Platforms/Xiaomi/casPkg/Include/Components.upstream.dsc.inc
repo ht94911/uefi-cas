@@ -26,5 +26,4 @@
   MdeModulePkg/Universal/Disk/DiskIoDxe/DiskIoDxe.inf
   MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe.inf
   FatPkg/EnhancedFatDxe/Fat.inf
-  casPkg/Applications/CasSmoke/CasSmoke.inf
   DarwinBootPkg/Driver/DarwinBoot.inf

@@ -74,10 +74,6 @@ _Start:
   lsr   x24, x24, #2
   str   x24, [sp, #80]
   str   x25, [sp, #88]
-#ifdef CAS_XNU_DIAGNOSTICS
-  mrs   x5, cntvct_el0
-  str   x5, [sp, #104]       // diagnostic boot stamp; constant across app exits
-#endif
   mov   x3, sp
   ldr   x4, =CAS_LOG_BASE
   mov   x5, #CAS_BOOT_INFO_SIZE
@@ -91,13 +87,6 @@ _Start:
   bl    CasDisplayInitialize
   mov   w0, #1
   bl    CasDisplayMark
-
-#ifdef CAS_TRACE_RECOVERY_ONLY
-  // No FD copy, SEC/DXE/ArmCpuDxe, boot services, or XNU execution.
-  bl    CasTraceRecoverEarly
-10: wfe
-  b     10b
-#endif
 
   adr   x3, _Payload
   ldr   x4, =CAS_FD_BASE
