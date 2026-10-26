@@ -26,6 +26,4 @@
   INF MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe.inf
   INF FatPkg/EnhancedFatDxe/Fat.inf
   INF casPkg/Applications/CasSmoke/CasSmoke.inf
-INF casPkg/Applications/CasDiag/CasDiag.inf
-
 INF DarwinBootPkg/Driver/DarwinBoot.inf

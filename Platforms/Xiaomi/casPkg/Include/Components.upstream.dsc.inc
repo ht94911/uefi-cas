@@ -27,8 +27,4 @@
   MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe.inf
   FatPkg/EnhancedFatDxe/Fat.inf
   casPkg/Applications/CasSmoke/CasSmoke.inf
-  casPkg/Applications/CasDiag/CasDiag.inf
-  DarwinBootPkg/Driver/DarwinBoot.inf {
-    <BuildOptions>
-      *_CLANGPDB_*_CC_FLAGS = -include $(WORKSPACE)/Platforms/Xiaomi/casPkg/Include/CasLoaderGuardRequired.h
-  }
+  DarwinBootPkg/Driver/DarwinBoot.inf

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-2-Clause-Patent
-// Generated from cas-memory-001; do not hand-edit.
+// cas UEFI memory map. Maintained by hand.
 #include <Library/MemoryMapLib.h>
 
 STATIC EFI_MEMORY_REGION_DESCRIPTOR mRegions[] = {
@@ -34,6 +34,9 @@ STATIC EFI_MEMORY_REGION_DESCRIPTOR mRegions[] = {
   {"protected_20", 0xb0400000, 0x1000000, HobOnlyNoCacheSetting, MEM_RES, UNCACHEABLE, Reserv, ARM_MEMORY_REGION_ATTRIBUTE_UNCACHED_UNBUFFERED},
   {"protected_21", 0x9e300000, 0x100000, HobOnlyNoCacheSetting, MEM_RES, UNCACHEABLE, Reserv, ARM_MEMORY_REGION_ATTRIBUTE_UNCACHED_UNBUFFERED},
   {"protected_22", 0x9fa00000, 0x40000, HobOnlyNoCacheSetting, MEM_RES, UNCACHEABLE, Reserv, ARM_MEMORY_REGION_ATTRIBUTE_UNCACHED_UNBUFFERED},
+  // XNU owned window: DRAM 4..9 GiB is contiguous on cas (banks 0xc0000000+5 GiB and
+  // 0x200000000+6 GiB), the same layout umi publishes for its 4.75 GiB DarwinBoot window.
+  {"Darwin High RAM", 0x100000000ULL, 0x140000000ULL, AddMem, SYS_MEM, SYS_MEM_CAP, Conv, ARM_MEMORY_REGION_ATTRIBUTE_WRITE_BACK_XP},
   {"spmi-core", 0xc440000, 0x2000, AddDev, MMAP_IO, UNCACHEABLE, MmIO, ARM_MEMORY_REGION_ATTRIBUTE_DEVICE},
   {"spmi-observer", 0xe600000, 0x100000, AddDev, MMAP_IO, UNCACHEABLE, MmIO, ARM_MEMORY_REGION_ATTRIBUTE_DEVICE},
   {"spmi-configuration", 0xc40a000, 0x26000, AddDev, MMAP_IO, UNCACHEABLE, MmIO, ARM_MEMORY_REGION_ATTRIBUTE_DEVICE},
